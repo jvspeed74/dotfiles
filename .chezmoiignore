@@ -1,3 +1,5 @@
-# These directories/files live in the source repo but are not applied to $HOME
+# Not applied to home directory
 jetbrains/
 install.sh
+README.md
+GUIDE.md
