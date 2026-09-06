@@ -1,3 +1,14 @@
+{{- $is_corporate := promptBoolOnce . "is_corporate" "Is this a corporate-managed machine (proxy/CA cert needed)" false -}}
+{{- $proxyURL := "" -}}
+{{- $caCertPath := "" -}}
+{{- if $is_corporate -}}
+{{-   $proxyURL = promptStringOnce . "corporate_proxy_url" "Corporate proxy URL (e.g. http://proxy.corp.example:8080)" "" -}}
+{{-   $caCertPath = promptStringOnce . "corporate_ca_cert_source_path" "Path to exported corporate root CA cert (e.g. /mnt/c/Users/you/ca.crt)" "" -}}
+{{- end -}}
 [git]
     autoCommit = false
     autoPush = false
+[data]
+    is_corporate = {{ $is_corporate }}
+    corporate_proxy_url = {{ $proxyURL | quote }}
+    corporate_ca_cert_source_path = {{ $caCertPath | quote }}

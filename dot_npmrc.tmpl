@@ -1,0 +1,4 @@
+{{- if .is_corporate }}
+proxy={{ .corporate_proxy_url }}
+https-proxy={{ .corporate_proxy_url }}
+{{- end }}
