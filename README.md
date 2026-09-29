@@ -29,6 +29,7 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 | Oh My Zsh + zsh-autosuggestions + zsh-syntax-highlighting | `run_once_after_14-install-oh-my-zsh.sh.tmpl` |
 | lazygit (brew on Mac, built from source on Linux — not in apt) | `run_once_after_15-build-lazygit.sh.tmpl` |
 | mermaid-cli + headless Chrome | `run_once_after_16-install-mermaid-cli.sh.tmpl` |
+| gh (brew on Mac, apt on Linux) | `run_once_after_17-install-gh.sh.tmpl` |
 
 Each runs once (chezmoi tracks a content hash) and self-checks that the tool actually works
 before exiting successfully.
@@ -61,6 +62,10 @@ You'll be asked:
 
 These answers are stored locally in `~/.config/chezmoi/chezmoi.toml` — never committed to this
 repo.
+
+**After bootstrap:** run `gh auth login` once. `~/.gitconfig` routes GitHub HTTPS credentials
+through `gh` (by absolute path, so GUI apps without your shell `PATH` work too); until you log in,
+git falls back to prompting.
 
 ### Corporate WSL: before running the one-liner
 

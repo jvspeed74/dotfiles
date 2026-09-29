@@ -16,7 +16,8 @@ sudo apt-get install -y \
     libnspr4 \
     libnss3 \
     libasound2t64 \
-    zsh
+    zsh \
+    gh
 
 mkdir -p "$HOME/.local/bin"
 ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
@@ -33,4 +34,5 @@ command -v go >/dev/null || { echo "golang-go install failed" >&2; exit 1; }
 command -v unzip >/dev/null || { echo "unzip install failed" >&2; exit 1; }
 gcc --version >/dev/null || { echo "build-essential (gcc) install failed" >&2; exit 1; }
 command -v zsh >/dev/null || { echo "zsh install failed" >&2; exit 1; }
+command -v gh >/dev/null || { echo "gh install failed" >&2; exit 1; }
 [[ "$(getent passwd "$USER" | cut -d: -f7)" == "$zsh_path" ]] || { echo "chsh to zsh failed" >&2; exit 1; }
