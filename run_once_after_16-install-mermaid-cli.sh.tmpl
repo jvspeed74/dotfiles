@@ -17,7 +17,8 @@ export NVM_DIR="$HOME/.nvm"
 \. "$NVM_DIR/nvm.sh"
 
 npm install -g @mermaid-js/mermaid-cli
-npx puppeteer browsers install chrome-headless-shell
+# @puppeteer/browsers honors HTTP(S)_PROXY only when proxy-agent is installed (pptr.dev/browsers-api).
+npx -p puppeteer -p proxy-agent puppeteer browsers install chrome-headless-shell
 
 command -v mmdc >/dev/null || { echo "mermaid-cli install failed" >&2; exit 1; }
 mmdc --version >/dev/null || { echo "mmdc did not report a version" >&2; exit 1; }
