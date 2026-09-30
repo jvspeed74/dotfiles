@@ -1,0 +1,56 @@
+name: bootstrap
+
+on:
+  pull_request:
+    paths:
+      - 'dot_*'
+      - 'dot_*/**'
+      - 'run_*'
+      - '.chezmoi*'
+      - '.github/**'
+  workflow_dispatch:
+
+concurrency:
+  group: bootstrap-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  templates:
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 15
+    steps:
+      - run: apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git
+      - uses: actions/checkout@v5
+      - run: sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+      - run: .github/ci/templates.sh
+
+  bootstrap-personal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - run: .github/ci/run-bootstrap.sh personal
+
+  bootstrap-corporate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - run: .github/ci/run-bootstrap.sh corporate
+
+  # Manual only: macOS minutes bill at a multiple of Linux minutes on private repos.
+  # The runner already has Homebrew and gh on PATH, so this cannot reproduce a fresh Mac.
+  macos:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - run: brew install chezmoi
+      - run: .github/ci/templates.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
