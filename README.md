@@ -97,7 +97,9 @@ TLS-inspecting corporate proxy the CA cert and proxy must already be in place. I
 6. **Run the one-liner above.**
 
 After bootstrap, the proxy lives in `~/.zshenv`, which every zsh reads (including non-interactive
-`wsl.exe <cmd>`). `/etc/environment` is deliberately not used: WSL starts shells without a PAM
+`wsl.exe <cmd>`). So does corporate CA trust for tools that ignore the system store: Node gets
+`NODE_EXTRA_CA_CERTS` (the copy `before_00` installs on Linux; your exported cert path on Mac) and
+uv gets `UV_SYSTEM_CERTS=1`. `/etc/environment` is deliberately not used: WSL starts shells without a PAM
 session, so `pam_env` never loads it
 ([microsoft/WSL#9213](https://github.com/microsoft/WSL/issues/9213)).
 
