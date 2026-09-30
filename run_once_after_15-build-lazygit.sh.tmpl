@@ -7,6 +7,8 @@ export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
 {{ if eq .chezmoi.os "darwin" -}}
+# after_05's shellenv ran in its own process; brew is not on this script's PATH on a fresh Mac.
+eval "$(/opt/homebrew/bin/brew shellenv)"
 brew install lazygit
 {{ else -}}
 workdir="$(mktemp -d)"

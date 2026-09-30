@@ -130,7 +130,9 @@ export BROWSER=wslview
 # Everything below runs on both
 ```
 
-Add that block via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the file,
+The Mac branch already exists at the top of `dot_zshrc.tmpl` (Homebrew's `shellenv`, placed before
+the `PATH` export so `~/.local/bin` keeps precedence); add other branches, like the WSL one, the
+same way via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the file,
 rather than every shell startup — slightly faster, and consistent with how the corporate proxy
 block works in `dot_zshenv.tmpl`.
 
