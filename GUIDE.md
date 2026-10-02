@@ -132,7 +132,11 @@ export BROWSER=wslview
 
 Add that block via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the file,
 rather than every shell startup — slightly faster, and consistent with how the corporate proxy
-block already works in this file.
+block works in `dot_zshenv.tmpl`.
+
+Environment variables that non-interactive commands need (the corporate proxy, cargo's env) go in
+`dot_zshenv.tmpl`, not `.zshrc`: zsh reads `~/.zshenv` for every invocation, including
+`wsl.exe <cmd>` and `zsh -c`, but reads `~/.zshrc` only for interactive shells.
 
 ---
 

@@ -1,0 +1,10 @@
+# Read by every zsh, including non-interactive ones (e.g. `wsl.exe <cmd>`), unlike .zshrc.
+{{- if .is_corporate }}
+export HTTP_PROXY={{ .corporate_proxy_url | quote }}
+export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+export http_proxy={{ .corporate_proxy_url | quote }}
+export https_proxy={{ .corporate_proxy_url | quote }}
+{{- end }}
+
+# rustup is installed with --no-modify-path; this file owns the cargo env line.
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"

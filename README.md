@@ -6,6 +6,7 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 
 | Source file | Where it lands |
 |---|---|
+| `dot_zshenv.tmpl` | `~/.zshenv` (corporate proxy, cargo env) |
 | `dot_zshrc.tmpl` | `~/.zshrc` |
 | `dot_gitconfig.tmpl` | `~/.gitconfig` |
 | `dot_npmrc.tmpl` | `~/.npmrc` |
@@ -21,7 +22,7 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 | Tool | Script |
 |---|---|
 | Homebrew (Mac only) | `run_once_after_05-install-homebrew.sh.tmpl` |
-| build-essential, ripgrep, fd, unzip, golang-go, headless-Chrome runtime libs (Linux only) | `run_once_after_10-install-apt-packages.sh` |
+| build-essential, ripgrep, fd, unzip, golang-go, headless-Chrome runtime libs, zsh + `chsh` to it (Linux only) | `run_once_after_10-install-apt-packages.sh` |
 | Rust (rustup/cargo) | `run_once_after_11-install-rustup.sh.tmpl` |
 | Node.js LTS (nvm) | `run_once_after_12-install-nvm-node.sh.tmpl` |
 | uv | `run_once_after_13-install-uv.sh.tmpl` |
@@ -61,9 +62,39 @@ You'll be asked:
 These answers are stored locally in `~/.config/chezmoi/chezmoi.toml` — never committed to this
 repo.
 
-**Not covered here:** WSL2 "mirrored networking mode" is a Windows-host `.wslconfig` setting
-(`networkingMode=mirrored`), not something any WSL-side script can configure. Set it manually if
-needed, then `wsl --shutdown` to apply it.
+### Corporate WSL: before running the one-liner
+
+The one-liner downloads chezmoi and clones this repo *before* any script runs, so on a
+TLS-inspecting corporate proxy the CA cert and proxy must already be in place. In order:
+
+1. **Confirm WSL2** — `wsl -l -v` in PowerShell must show `VERSION 2`.
+2. **Use Ubuntu 24.04 or later** — the apt script installs `libasound2t64`, a package name that
+   does not exist on 22.04.
+3. **Mirrored networking, if the proxy is Windows-local** — if the proxy is an agent listening on
+   `127.0.0.1` on the Windows host, WSL2's default NAT networking cannot reach it. Set
+   `networkingMode=mirrored` in the Windows-side `%UserProfile%\.wslconfig` (no WSL-side script
+   can configure this), then `wsl --shutdown`.
+4. **Trust the corporate CA** (substitute your exported cert path):
+
+   ```bash
+   sudo cp /mnt/c/path/to/corp-root-ca.crt /usr/local/share/ca-certificates/corporate-root-ca.crt && sudo update-ca-certificates
+   ```
+
+   `run_onchange_before_00-import-ca-cert.sh.tmpl` repeats this idempotently later; it is needed here
+   because the bootstrap download happens first.
+5. **Export the proxy in the current (bash) shell** — both cases, since `curl` ignores uppercase
+   `HTTP_PROXY`:
+
+   ```bash
+   export http_proxy=http://proxy.corp.example:8080 https_proxy=http://proxy.corp.example:8080 HTTP_PROXY=http://proxy.corp.example:8080 HTTPS_PROXY=http://proxy.corp.example:8080
+   ```
+
+6. **Run the one-liner above.**
+
+After bootstrap, the proxy lives in `~/.zshenv`, which every zsh reads (including non-interactive
+`wsl.exe <cmd>`). `/etc/environment` is deliberately not used: WSL starts shells without a PAM
+session, so `pam_env` never loads it
+([microsoft/WSL#9213](https://github.com/microsoft/WSL/issues/9213)).
 
 ## Quick reference
 

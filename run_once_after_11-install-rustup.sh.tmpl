@@ -6,7 +6,7 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
 
 "$HOME/.cargo/bin/rustc" --version >/dev/null || { echo "rustup install failed" >&2; exit 1; }
 "$HOME/.cargo/bin/cargo" --version >/dev/null || { echo "cargo not found after rustup install" >&2; exit 1; }
