@@ -105,12 +105,29 @@ check "nvim: skip test leaves the existing config unchanged" test "$before" = "$
 rm -rf "$HOME/.config/nvim"
 mv /tmp/nvim-bootstrapped "$HOME/.config/nvim"
 
+# Resume test: a copy interrupted after one starter file (marker still present) must finish on the
+# next run instead of being mistaken for a user config.
+mv "$HOME/.config/nvim" /tmp/nvim-bootstrapped
+mkdir -p "$HOME/.config/nvim/lua/plugins"
+touch "$HOME/.config/nvim/.lazyvim-bootstrap-incomplete"
+cp /tmp/nvim-bootstrapped/init.lua "$HOME/.config/nvim/"
+cp /tmp/nvim-bootstrapped/lazyvim.json "$HOME/.config/nvim/"
+cp /tmp/nvim-bootstrapped/lua/plugins/sql.lua "$HOME/.config/nvim/lua/plugins/"
+resume_rc=0
+resume_out=$(chezmoi execute-template < "$HOME/.local/share/chezmoi/run_once_after_19-install-neovim-lazyvim.sh.tmpl" | bash 2>&1) || resume_rc=$?
+check "nvim: resume test exits 0" test "$resume_rc" = 0
+check "nvim: resume test reports resuming" grep -q 'Resuming an interrupted LazyVim bootstrap' <<<"$resume_out"
+check "nvim: resume test completes the starter and clears the marker" \
+    test -f "$HOME/.config/nvim/lua/config/lazy.lua" -a ! -e "$HOME/.config/nvim/.lazyvim-bootstrap-incomplete"
+rm -rf "$HOME/.config/nvim"
+mv /tmp/nvim-bootstrapped "$HOME/.config/nvim"
+
 check "second chezmoi apply succeeds" chezmoi apply
 check "chezmoi status is clean after second apply" test -z "$(chezmoi status)"
 
 if [[ $mode == corporate ]]; then
     env_dump=$(zsh -c env)
-    for var in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY NODE_EXTRA_CA_CERTS UV_SYSTEM_CERTS; do
+    for var in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY NODE_EXTRA_CA_CERTS UV_SYSTEM_CERTS DOTNET_CLI_TELEMETRY_OPTOUT; do
         check "#2/#5 $var set in non-interactive zsh" grep -q "^$var=" <<<"$env_dump"
     done
     check "apt proxy config written" test -f /etc/apt/apt.conf.d/95corporate-proxy
@@ -126,10 +143,8 @@ if [[ $mode == corporate ]]; then
     uv_ctl=$(zsh -i -c 'unset UV_SYSTEM_CERTS; uv pip install --python /tmp/uv-ok --no-cache --reinstall six 2>&1' </dev/null || true)
     check "#5 control: uv fails with a cert error without UV_SYSTEM_CERTS" grep -qi 'certif' <<<"$uv_ctl"
 
-    check "nvim: pip installs through the TLS proxy with PIP_CERT" zsh -c \
+    check "nvim: pip installs through the TLS proxy (system CA store)" zsh -c \
         'python3 -m venv /tmp/pip-ok && /tmp/pip-ok/bin/pip install -q --no-cache-dir six'
-    pip_ctl=$(zsh -c 'unset PIP_CERT; /tmp/pip-ok/bin/pip install --retries 0 --timeout 15 --no-cache-dir --force-reinstall six 2>&1' || true)
-    check "nvim: control: pip fails with a cert error without PIP_CERT" grep -qi 'certificate' <<<"$pip_ctl"
 fi
 
 exit "$fail"

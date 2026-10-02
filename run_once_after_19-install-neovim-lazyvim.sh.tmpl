@@ -13,7 +13,8 @@ brew install neovim tree-sitter-cli fzf
 {{ if eq .chezmoi.os "darwin" -}}
 # Nerd Font for LazyVim's icons; select it in the terminal's settings. Under WSL the font must be
 # installed on Windows instead (see README).
-brew install --cask font-jetbrains-mono-nerd-font
+brew install --cask font-jetbrains-mono-nerd-font \
+    || echo "JetBrainsMono Nerd Font cask skipped (already installed outside Homebrew?); LazyVim works without it." >&2
 {{ end -}}
 
 for tool in nvim tree-sitter fzf; do
@@ -25,23 +26,37 @@ nvim --headless -c 'if has("nvim-0.11.2") | qa | else | cq | endif' \
 nvim_dir="$HOME/.config/nvim"
 # Files chezmoi manages inside the config dir; any other file means a config already exists.
 managed_re='^(lazyvim\.json|lua/plugins/sql\.lua)$'
+# Present while the starter is being copied in. If a run dies mid-copy, the next run resumes instead
+# of mistaking the partial copy for a user config and skipping forever.
+marker="$nvim_dir/.lazyvim-bootstrap-incomplete"
 
-if [[ -f "$nvim_dir/lua/config/lazy.lua" ]]; then
-    echo "LazyVim starter already present in $nvim_dir."
-elif [[ -d "$nvim_dir" ]] && (cd "$nvim_dir" && find . -type f | sed 's#^\./##' | grep -vqE "$managed_re"); then
-    echo "$nvim_dir already has a config; skipping the LazyVim bootstrap (see README)." >&2
-    exit 0
-else
+copy_starter() {
+    mkdir -p "$nvim_dir"
+    touch "$marker"
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' EXIT
     git clone --depth 1 https://github.com/LazyVim/starter "$tmp/starter"
     rm -rf "$tmp/starter/.git"
-    # Copy without overwriting the chezmoi-managed files (lazyvim.json, lua/plugins/sql.lua).
+    # Copy without overwriting the chezmoi-managed files (lazyvim.json, lua/plugins/sql.lua) or
+    # files a previous, interrupted run already copied.
     (cd "$tmp/starter" && find . -type f | sed 's#^\./##') | while IFS= read -r f; do
         [[ -e "$nvim_dir/$f" ]] && continue
         mkdir -p "$(dirname "$nvim_dir/$f")"
         cp "$tmp/starter/$f" "$nvim_dir/$f"
     done
+    rm -f "$marker"
+}
+
+if [[ -e "$marker" ]]; then
+    echo "Resuming an interrupted LazyVim bootstrap in $nvim_dir."
+    copy_starter
+elif [[ -f "$nvim_dir/lua/config/lazy.lua" ]]; then
+    echo "LazyVim starter already present in $nvim_dir."
+elif [[ -d "$nvim_dir" ]] && (cd "$nvim_dir" && find . -type f | sed 's#^\./##' | grep -vqE "$managed_re"); then
+    echo "$nvim_dir already has a config; skipping the LazyVim bootstrap (see README)." >&2
+    exit 0
+else
+    copy_starter
 fi
 
 # Clone lazy.nvim the way the starter's lua/config/lazy.lua would. If its own clone fails it

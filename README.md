@@ -132,7 +132,9 @@ servers, formatters, and treesitter parsers install on the first interactive lau
   Terminal → Ubuntu profile → Appearance → Font face. Avoid the winget package
   `DEVCOM.JetBrainsMonoNerdFont`: it is an unofficial repackaging that requires admin.
 - **Corporate:** plugin clones, Mason downloads, and Homebrew all go through the proxy. Mason's
-  Python tools use `PIP_CERT` (set in `~/.zshenv` on Linux) to trust the corporate CA.
+  Python tools use Ubuntu's pip, which trusts the system CA store (corporate CA included after
+  `before_00`). .NET CLI telemetry is turned off (`DOTNET_CLI_TELEMETRY_OPTOUT=1`), matching
+  Homebrew analytics.
 
 ## Quick reference
 

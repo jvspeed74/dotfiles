@@ -4,6 +4,7 @@ set -euo pipefail
 {{ if .is_corporate -}}
 export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
 {{ end -}}
 
 eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"

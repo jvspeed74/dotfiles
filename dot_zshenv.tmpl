@@ -11,11 +11,8 @@ export NODE_EXTRA_CA_CERTS={{ .corporate_ca_cert_source_path | quote }}
 export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/corporate-root-ca.crt
 {{- end }}
 export UV_SYSTEM_CERTS=1
-{{- if eq .chezmoi.os "linux" }}
-# pip (including Mason's Python tools) uses its own CA bundle; point it at the system one, which
-# includes the corporate CA after before_00.
-export PIP_CERT=/etc/ssl/certs/ca-certificates.crt
-{{- end }}
+# .NET CLI telemetry is on by default; off on corporate machines, like Homebrew analytics.
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
 {{- end }}
 
 # rustup is installed with --no-modify-path; this file owns the cargo env line.
