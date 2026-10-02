@@ -4,6 +4,13 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 export http_proxy={{ .corporate_proxy_url | quote }}
 export https_proxy={{ .corporate_proxy_url | quote }}
+# Node and uv ship their own root CAs and ignore the system store by default.
+{{- if eq .chezmoi.os "darwin" }}
+export NODE_EXTRA_CA_CERTS={{ .corporate_ca_cert_source_path | quote }}
+{{- else }}
+export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/corporate-root-ca.crt
+{{- end }}
+export UV_SYSTEM_CERTS=1
 {{- end }}
 
 # rustup is installed with --no-modify-path; this file owns the cargo env line.
