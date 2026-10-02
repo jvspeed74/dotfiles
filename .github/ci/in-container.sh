@@ -46,10 +46,11 @@ for tool in brew gh rg fd lazygit uv node mmdc; do
 done
 brew_bin=/home/linuxbrew/.linuxbrew/bin
 for tool in gh rg fd lazygit; do
-    check "#9 $tool resolves to Homebrew ($brew_bin)" \
+    check "#10 $tool resolves to Homebrew ($brew_bin)" \
         test "$(zsh -i -c "command -v $tool" </dev/null 2>/dev/null)" = "$brew_bin/$tool"
 done
-check "#9 no stale ~/.local/bin/fd or ~/.local/bin/lazygit" \
+check "#10 brew tools resolve in non-interactive zsh (.zshenv)" zsh -c 'command -v gh rg fd lazygit >/dev/null'
+check "#10 no stale ~/.local/bin/fd or ~/.local/bin/lazygit" \
     test ! -e "$HOME/.local/bin/fd" -a ! -e "$HOME/.local/bin/lazygit"
 check "#8 chrome-headless-shell downloaded by after_16" \
     bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
@@ -58,7 +59,7 @@ check "#4 ~/.zshrc matches the managed template" cmp -s <(chezmoi cat "$HOME/.zs
 check "chezmoi status is clean after bootstrap" test -z "$(chezmoi status)"
 if [[ -n "$(chezmoi status)" ]]; then chezmoi status; chezmoi diff | head -60; fi
 
-check "#3/#9 github.com helper is !$brew_bin/gh" \
+check "#3/#10 github.com helper is !$brew_bin/gh" \
     bash -c "git config --get-all credential.https://github.com.helper | grep -qxF '!$brew_bin/gh auth git-credential'"
 cred_out=$(printf 'protocol=https\nhost=github.com\n\n' | GIT_TERMINAL_PROMPT=0 git credential fill 2>&1 || true)
 check "#3 helper runs before gh auth login (no 'No such file')" \
@@ -73,6 +74,7 @@ if [[ $mode == corporate ]]; then
         check "#2/#5 $var set in non-interactive zsh" grep -q "^$var=" <<<"$env_dump"
     done
     check "apt proxy config written" test -f /etc/apt/apt.conf.d/95corporate-proxy
+    check "#10 Homebrew analytics disabled" bash -c 'zsh -c "brew analytics state" 2>&1 | grep -qi disabled'
     check "CA installed by before_00" test -f /usr/local/share/ca-certificates/corporate-root-ca.crt
 
     check "#5 npm reaches the registry through the TLS proxy" zsh -i -c 'npm ping >/dev/null 2>&1' </dev/null

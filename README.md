@@ -27,7 +27,7 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 | Node.js LTS (nvm) | `run_once_after_12-install-nvm-node.sh.tmpl` |
 | uv | `run_once_after_13-install-uv.sh.tmpl` |
 | Oh My Zsh + zsh-autosuggestions + zsh-syntax-highlighting | `run_once_after_14-install-oh-my-zsh.sh.tmpl` |
-| lazygit (brew) | `run_once_after_15-build-lazygit.sh.tmpl` |
+| lazygit (brew) | `run_once_after_15-install-lazygit.sh.tmpl` |
 | mermaid-cli + headless Chrome | `run_once_after_16-install-mermaid-cli.sh.tmpl` |
 | gh (brew) | `run_once_after_17-install-gh.sh.tmpl` |
 | ripgrep, fd (brew) | `run_once_after_18-install-ripgrep-fd.sh.tmpl` |

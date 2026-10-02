@@ -4,6 +4,7 @@ set -euo pipefail
 {{ if .is_corporate -}}
 export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+export HOMEBREW_NO_ANALYTICS=1
 {{ end -}}
 
 brew_bin="{{ template "brew-prefix" . }}/bin/brew"
@@ -25,3 +26,7 @@ fi
 {{ end -}}
 eval "$("$brew_bin" shellenv)"
 command -v brew >/dev/null || { echo "Homebrew install failed" >&2; exit 1; }
+{{ if .is_corporate -}}
+# Persisted in Homebrew's own config, so it also covers brew runs from shells and other scripts.
+brew analytics off
+{{ end -}}
