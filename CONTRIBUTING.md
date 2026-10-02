@@ -18,6 +18,8 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | Never let an installer edit a chezmoi-managed file. | The edit shows as drift and is reverted on the next apply ([layer 4](ARCHITECTURE.md#4-provisioning-scripts)). |
 | Add any new file under `dot_config/nvim/` to `managed_re` in `run_once_after_19-install-neovim-lazyvim.sh.tmpl`. | Otherwise fresh machines treat it as a user config and skip the LazyVim bootstrap. |
 | Edit source files, not targets in `~`. | `chezmoi apply` overwrites targets from source. |
+| Start every script with `#!/usr/bin/env bash` and `set -euo pipefail`. | A failing command must stop the script, so its self-check never reports a half-install as success. |
+| Never wait for input: `apt-get -y`, `NONINTERACTIVE=1` for Homebrew; only `sudo` may prompt. | Any other prompt hangs the bootstrap. |
 
 ## Repo map
 
@@ -33,6 +35,23 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | `dot_config/nvim/`, `dot_sqlfluff` | LazyVim seed and SQL dialect override | [7](ARCHITECTURE.md#7-editor-neovim-and-lazyvim) |
 | `.github/workflows/bootstrap.yml`, `.github/ci/` | CI | [8](ARCHITECTURE.md#8-verification-ci) |
 | `jetbrains/` | IDE settings exports; not applied | — |
+
+## Where to work
+
+Develop in a separate clone, not in the chezmoi source directory:
+
+```bash
+git clone git@github.com:jvspeed74/dotfiles.git ~/src/dotfiles
+```
+
+| Step | Command |
+|---|---|
+| Preview your change against this machine's home | `chezmoi diff --source ~/src/dotfiles` |
+| Test it | [Test locally](#test-locally) (Docker) |
+| Roll it out after merging | `chezmoi update` on each machine |
+
+**Pitfall:** editing in `chezmoi cd` and then running `chezmoi apply` puts an untested change on
+your own machine.
 
 ## Test locally
 

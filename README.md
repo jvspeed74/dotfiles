@@ -1,7 +1,8 @@
 # dotfiles
 
-[chezmoi](https://chezmoi.io)-managed configuration and tool setup for macOS (Apple Silicon) and
-WSL2 Ubuntu 24.04, on personal machines or behind a TLS-inspecting corporate proxy.
+[chezmoi](https://chezmoi.io)-managed configuration and tool setup for macOS (Apple Silicon;
+bootstrap not CI-tested) and WSL2 Ubuntu 24.04, on personal machines or behind a TLS-inspecting
+corporate proxy.
 
 ## Quick start
 
@@ -12,7 +13,11 @@ bash -c "$(curl -fsLS get.chezmoi.io)" -- init --apply jvspeed74
 ```
 
 The repo is private: git asks for credentials during the clone
-([clone the private repo](GUIDE.md#clone-the-private-repo)).
+([clone the private repo](GUIDE.md#clone-the-private-repo)). On a fresh Mac, run
+`xcode-select --install` first.
+
+**Machine already has dotfiles?** Use [existing machine](GUIDE.md#existing-machine): the one-liner
+overwrites them without asking.
 
 **Corporate WSL machine:** do the [corporate WSL preconditions](GUIDE.md#corporate-wsl-preconditions)
 first; the one-liner needs the proxy and CA before any of this repo runs.

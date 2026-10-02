@@ -79,6 +79,8 @@ must already have the proxy and trust the corporate CA.
 | `curl` or `git clone` fails with a certificate error | Corporate CA not yet trusted | [GUIDE: corporate WSL preconditions](GUIDE.md#corporate-wsl-preconditions) |
 | `git clone` asks for a username, or fails | Private repo, no credentials | [GUIDE: clone the private repo](GUIDE.md#clone-the-private-repo) |
 | Bootstrap hangs | Run non-interactively (piped, CI, cron) | Run it in a real terminal |
+| `xcrun: error`, or a developer-tools dialog, on a fresh Mac | Command Line Tools missing; the clone calls the `/usr/bin/git` stub | [GUIDE: personal machine](GUIDE.md#personal-machine), step 0 |
+| Existing dotfiles replaced without a prompt | No previous chezmoi state to compare against, so the first apply overwrites | [GUIDE: existing machine](GUIDE.md#existing-machine) |
 
 ## 2. Config data and templating
 
@@ -420,4 +422,5 @@ proxy or the corporate CA fails the job.
 | VS Code Remote-WSL server | Reads no shell startup files, so it gets no proxy. |
 | macOS `pip` behind the corporate proxy | Untested. |
 | First Neovim launch (language servers, parsers, .NET tools) | Not exercised by CI. |
+| macOS bootstrap, end to end | Never run in CI; only macOS template rendering is checked, by the manual `macos` job. |
 | Intel Macs, non-Debian Linux | Not supported: `/opt/homebrew` and apt are assumed. |

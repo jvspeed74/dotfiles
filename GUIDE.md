@@ -11,6 +11,8 @@ Tasks for the person using a machine set up from this repo. Each task: **When** 
 
 **Steps**
 
+0. **macOS only:** run `xcode-select --install` and wait for it to finish. chezmoi clones with
+   `/usr/bin/git`, which is only a stub until the Command Line Tools are installed.
 1. Open a real terminal (the bootstrap prompts and calls `sudo`).
 2. Run:
 
@@ -23,6 +25,30 @@ Tasks for the person using a machine set up from this repo. Each task: **When** 
 5. Do the steps in [after bootstrap](#after-bootstrap).
 
 **Check:** a new terminal opens zsh with Oh My Zsh, and `chezmoi status` prints nothing.
+
+### Existing machine
+
+**When:** the machine already has dotfiles (`~/.zshrc`, `~/.gitconfig`, …). The one-liner's first
+apply overwrites every managed file without asking.
+
+**Steps**
+
+1. Clone and answer the prompts, without applying:
+
+   ```bash
+   bash -c "$(curl -fsLS get.chezmoi.io)" -- init jvspeed74
+   ```
+
+2. Back up every existing file chezmoi would write:
+
+   ```bash
+   chezmoi managed --include=files | while IFS= read -r f; do [ -e "$HOME/$f" ] && mkdir -p "$HOME/dotfiles-backup/$(dirname "$f")" && cp -a "$HOME/$f" "$HOME/dotfiles-backup/$f"; done
+   ```
+
+3. Review what would change: `chezmoi diff`.
+4. Apply: `chezmoi apply`, then do the steps in [after bootstrap](#after-bootstrap).
+
+**Check:** `~/dotfiles-backup/` holds your previous files.
 
 ### Clone the private repo
 
@@ -66,6 +92,36 @@ it downloads chezmoi and clones the repo before any repo script runs.
 
 **Check:** `env | grep -i proxy` in a new terminal shows four variables.
 
+### Corporate macOS
+
+**When:** a Mac behind a TLS-inspecting corporate proxy. *Untested end to end.*
+
+**Steps**
+
+1. In Keychain Access, export the corporate root CA as a `.pem` to a stable path, e.g.
+   `~/.config/certs/corp-root-ca.pem`. Not Downloads: `NODE_EXTRA_CA_CERTS` keeps pointing at it.
+2. Export the proxy in the current shell, in both cases (as in step 5 of
+   [corporate WSL preconditions](#corporate-wsl-preconditions)).
+3. Run step 0 and the one-liner from [personal machine](#personal-machine). Answer `true` to the
+   corporate question, then give the proxy URL and the `.pem` path from step 1.
+
+**Check:** `env | grep -i proxy` in a new terminal shows four variables.
+
+### What bootstrap changes outside your dotfiles
+
+**When:** before bootstrapping a machine you care about, or when undoing it. A full bootstrap took
+about 7–10 minutes on a GitHub runner; laptop time and disk use are unmeasured.
+
+| Change | Where | Undo |
+|---|---|---|
+| Login shell set to zsh | `/etc/passwd` (Linux) | `chsh -s /bin/bash` |
+| Corporate CA trusted (corporate, Linux) | `/usr/local/share/ca-certificates/corporate-root-ca.crt` | `sudo rm /usr/local/share/ca-certificates/corporate-root-ca.crt && sudo update-ca-certificates --fresh` |
+| Corporate CA trusted (corporate, macOS) | System keychain | `sudo security delete-certificate -c "<cert name>" /Library/Keychains/System.keychain` |
+| apt proxy (corporate, Linux) | `/etc/apt/apt.conf.d/95corporate-proxy` | `sudo rm /etc/apt/apt.conf.d/95corporate-proxy` |
+| Homebrew and its packages | `/opt/homebrew` or `/home/linuxbrew/.linuxbrew` | Homebrew's uninstall script |
+| Tool directories | `~/.oh-my-zsh`, `~/.nvm`, `~/.cargo`, `~/.rustup`, `~/.local/bin/uv` | Delete the directory |
+| Neovim config and plugins | `~/.config/nvim`, `~/.local/share/nvim` | Delete both |
+
 ### After bootstrap
 
 **When:** once, right after the first successful bootstrap.
@@ -101,6 +157,21 @@ it downloads chezmoi and clones the repo before any repo script runs.
 1. On the other machine: `chezmoi update` (`git pull` plus `chezmoi apply`).
 
 **Check:** `chezmoi status` prints nothing.
+
+### Update installed tools
+
+**When:** you want newer versions. Install scripts are `run_once_`: they never upgrade anything,
+and `chezmoi update` does not either.
+
+| Tool | Command |
+|---|---|
+| Homebrew packages | `brew upgrade` |
+| apt packages (Linux) | `sudo apt update && sudo apt upgrade` |
+| Rust | `rustup update` |
+| Node (keeps global npm packages such as mermaid-cli) | `nvm install --lts --reinstall-packages-from=current` |
+| uv | `uv self update` |
+| Oh My Zsh | `omz update` |
+| Neovim plugins and language servers | `:Lazy update`, then `:MasonUpdate` |
 
 ### Track a new file or directory
 
