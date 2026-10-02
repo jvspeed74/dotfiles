@@ -1,235 +1,265 @@
-# Dotfiles guide
+# Guide
 
-## How chezmoi works
+Tasks for the person using a machine set up from this repo. Each task: **When** → **Steps** →
+**Check**. How it works underneath is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-chezmoi keeps a **source directory** (`~/.local/share/chezmoi/`) that mirrors your home directory structure. `chezmoi apply` copies files from source → `~`. `chezmoi add` goes the other direction: home → source.
+## Set up a machine
 
-The naming convention exists because git can't track dotfiles that start with `.` easily when you're also versioning the directory itself. chezmoi solves this by renaming:
+### Personal machine
 
-- `dot_zshrc.tmpl` in source → `.zshrc` in `~`
-- `dot_config/nvim/` in source → `~/.config/nvim/`
-- `dot_local/bin/` in source → `~/.local/bin/`
+**When:** a Mac (Apple Silicon) or WSL2 Ubuntu 24.04 machine with no corporate proxy.
 
-A `.tmpl` suffix (e.g. `dot_zshrc.tmpl`, `dot_gitconfig.tmpl`) means the file is processed as a
-Go template before being written to `~` — used here for the `{{ if .is_corporate }}` conditional
-blocks (see "Corporate-environment config" below).
+**Steps**
 
-Files listed in `.chezmoiignore` (`jetbrains/`, the markdown files) exist in the source repo but are never applied to `~`.
+1. Open a real terminal (the bootstrap prompts and calls `sudo`).
+2. Run:
 
-**Rule:** don't edit managed files directly in `~`. Use `chezmoi edit <file>` instead. If you do edit in `~` directly, run `chezmoi re-add` to pull those changes back into source before they get overwritten.
+   ```bash
+   bash -c "$(curl -fsLS get.chezmoi.io)" -- init --apply jvspeed74
+   ```
 
----
+3. Supply GitHub credentials when git asks ([clone the private repo](#clone-the-private-repo)).
+4. Answer `false` to "Is this a corporate-managed machine".
+5. Do the steps in [after bootstrap](#after-bootstrap).
 
-## Day-to-day workflow
+**Check:** a new terminal opens zsh with Oh My Zsh, and `chezmoi status` prints nothing.
 
-### Editing a tracked config
+### Clone the private repo
 
-```bash
-chezmoi edit ~/.zshrc    # opens dot_zshrc in $EDITOR
-chezmoi apply            # writes the change to ~/.zshrc
-chezmoi cd               # cd to ~/.local/share/chezmoi/
-git add -A && git commit -m "..." && git push
-```
+**When:** always; the repo is private, so the clone in the one-liner needs credentials.
 
-Or edit the source file directly if you prefer:
+**Steps**, one of:
 
-```bash
-chezmoi cd
-vim dot_zshrc
-chezmoi apply
-git add -A && git commit -m "..." && git push
-```
+| Method | How | Notes |
+|---|---|---|
+| HTTPS + token | Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens) with read access to *Contents* of `jvspeed74/dotfiles`. When git prompts, enter your GitHub username and paste the token as the password. | Works behind corporate proxies. git does not store it; `chezmoi update` asks again until [`gh auth login`](#after-bootstrap). |
+| SSH | Replace `jvspeed74` in the one-liner with `git@github.com:jvspeed74/dotfiles.git`. | Needs an SSH key already registered with GitHub. Corporate networks often block port 22. |
 
-### Syncing to another machine
+**Check:** `chezmoi source-path` prints a directory that contains this repo.
 
-```bash
-chezmoi update
-```
+### Corporate WSL preconditions
 
-That's it. It runs `git pull` + `chezmoi apply` in one shot. Use this on your Mac after pushing from WSL (or vice versa).
+**When:** a WSL2 machine behind a TLS-inspecting corporate proxy. Do these **before** the one-liner:
+it downloads chezmoi and clones the repo before any repo script runs.
 
----
+**Steps**
 
-## Tracking a new config file
+1. Confirm WSL2: `wsl -l -v` in PowerShell shows `VERSION 2`.
+2. Use Ubuntu 24.04 or later (the apt script installs `libasound2t64`, which 22.04 lacks).
+3. If the proxy listens on `127.0.0.1` on the Windows host, set `networkingMode=mirrored` in
+   `%UserProfile%\.wslconfig`, then run `wsl --shutdown`. WSL2's default NAT cannot reach it.
+4. Export the corporate root CA from the Windows certificate store to a path under `/mnt/c/…`, then
+   trust it in Ubuntu:
 
-When you install something new and it creates a config file you want to keep:
+   ```bash
+   sudo cp /mnt/c/path/to/corp-root-ca.crt /usr/local/share/ca-certificates/corporate-root-ca.crt && sudo update-ca-certificates
+   ```
 
-```bash
-chezmoi add ~/.config/lazygit/config.yml
-chezmoi cd
-git add -A && git commit -m "Add lazygit config" && git push
-```
+5. Export the proxy in the current shell, in both cases (`curl` ignores uppercase `HTTP_PROXY`):
 
-chezmoi copies the file into source and handles the renaming automatically.
+   ```bash
+   export http_proxy=http://proxy.corp.example:8080 https_proxy=http://proxy.corp.example:8080 HTTP_PROXY=http://proxy.corp.example:8080 HTTPS_PROXY=http://proxy.corp.example:8080
+   ```
 
-### Tracking a whole directory
+6. Run the one-liner from [personal machine](#personal-machine) using the HTTPS + token method.
+   Answer `true` to the corporate question, then give the proxy URL and the CA path from step 4.
 
-```bash
-chezmoi add ~/.config/nvim
-```
+**Check:** `env | grep -i proxy` in a new terminal shows four variables.
 
-Recursively adds everything under that directory. LazyVim is bootstrapped from the starter by
-`run_once_after_19-install-neovim-lazyvim.sh.tmpl`, not tracked; run this once you've customized
-`~/.config/nvim` and want the full config synced. Two files there are already managed:
-`lazyvim.json` is a **create-only** seed (`create_` prefix: written when missing, never
-overwritten, so `:LazyExtras` changes stay local — edit the seed to change Extras for new machines),
-and `lua/plugins/sql.lua` is a normal managed file.
+### After bootstrap
 
-Per-project SQL dialect: add a `.sqlfluff` in the project root with `[sqlfluff]` and
-`dialect = postgres` (or `snowflake`); `~/.sqlfluff` supplies the `ansi` default.
+**When:** once, right after the first successful bootstrap.
 
----
+**Steps**
 
-## Adding scripts to PATH
+1. Open a new terminal (the login shell is now zsh).
+2. Run `gh auth login`. Git uses `gh` for GitHub HTTPS credentials; until you log in, git prompts.
+3. Select the Nerd Font in your terminal ([install the Nerd Font](#install-the-nerd-font)).
 
-`~/.local/bin/` is already in your PATH (set in `.zshrc`). Drop executables there and they're available everywhere.
+**Check:** `gh auth status` shows you logged in.
 
-### Shell script
+## Everyday tasks
 
-```bash
-cat > ~/.local/bin/my-script << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
+### Edit a managed file
 
-echo "hello"
-EOF
-chmod +x ~/.local/bin/my-script
+**When:** changing any file this repo manages (`~/.zshrc`, `~/.gitconfig`, …).
 
-chezmoi add ~/.local/bin/my-script
-chezmoi cd && git add -A && git commit -m "Add my-script" && git push
-```
+**Steps**
 
-### Python script with uv
+1. `chezmoi edit ~/.zshrc` (opens the source file).
+2. `chezmoi apply`.
+3. `chezmoi cd`, then commit and push.
 
-Because you have `uv` on every machine, Python scripts can declare their own dependencies inline — no venv setup, no `requirements.txt` for standalone scripts.
+**Check:** `chezmoi diff` prints nothing.
 
-```python
-#!/usr/bin/env -S uv run
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["httpx", "rich"]
-# ///
+### Sync another machine
 
-import httpx
-from rich import print
+**When:** you pushed changes from one machine and want them on another.
 
-response = httpx.get("https://example.com")
-print(response.status_code)
-```
+**Steps**
 
-Save to `~/.local/bin/my-script.py`, make it executable, then `chezmoi add`. uv installs the dependencies automatically on first run and caches them — subsequent runs are fast.
+1. On the other machine: `chezmoi update` (`git pull` plus `chezmoi apply`).
 
----
+**Check:** `chezmoi status` prints nothing.
 
-## OS-specific zsh config
+### Track a new file or directory
 
-`dot_zshrc.tmpl` runs on both Mac and WSL. Since it's a template now, prefer chezmoi's
-template-time OS detection over a runtime `uname` check:
+**When:** a new config file in `~` should follow you to every machine.
 
-```zsh
-{{ if .chezmoi.kernel.osrelease | lower | contains "microsoft" -}}
-# WSL only
-export BROWSER=wslview
-{{ end -}}
-```
+**Steps**
 
-Add branches like that via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the
-file, rather than every shell startup — slightly faster, and consistent with how the corporate proxy
-block works in `dot_zshenv.tmpl`.
+1. `chezmoi add ~/.config/lazygit/config.yml` (a directory works too).
+2. `chezmoi cd`, then commit and push.
 
-For paths that differ only by OS, prefer a shared partial in `.chezmoitemplates/`. The Homebrew
-prefix is one: `{{ template "brew-prefix" . }}` renders `/opt/homebrew` on Mac and
-`/home/linuxbrew/.linuxbrew` on Linux, and is used by `dot_zshrc.tmpl` (`brew shellenv`, placed
-before the `PATH` export so `~/.local/bin` keeps precedence), `dot_gitconfig.tmpl` (the `gh`
-credential helper), and every script that calls `brew`.
+**Check:** the file appears in the source state with chezmoi's naming (`dot_config/…`).
 
-Environment variables that non-interactive commands need (the corporate proxy, cargo's env) go in
-`dot_zshenv.tmpl`, not `.zshrc`: zsh reads `~/.zshenv` for every invocation, including
-`wsl.exe <cmd>` and `zsh -c`, but reads `~/.zshrc` only for interactive shells.
+For files that differ per OS or per corporate/personal, see
+[CONTRIBUTING R3](CONTRIBUTING.md#r3-track-a-new-dotfile).
 
----
+### Add a script to your PATH
 
-## Scripts: `run_once_`, `run_onchange_`, and the `before_`/`after_` ordering gotcha
+**When:** a personal command should exist on every machine. `~/.local/bin` is first on PATH.
 
-Tool installs (rustup, nvm, uv, apt packages, etc.) and corporate system setup (CA cert import,
-apt proxy config) live as chezmoi scripts, not a separate `install.sh` — see the
-[README's tool inventory](README.md#tool-inventory-auto-installed-via-run_once_after_-scripts).
+**Steps**
 
-**Naming:** `run_[once_|onchange_][before_|after_]<name>.sh[.tmpl]`
+1. Write it to `~/.local/bin/<name>` and `chmod +x` it. For Python, uv can resolve dependencies
+   inline, with no virtualenv:
 
-- `run_once_` — runs once ever (chezmoi hashes the rendered content; never reruns after success).
-  Used for tool installs: installing rustup twice is pointless, not harmful, so "once" is right.
-- `run_onchange_` — reruns automatically whenever its *rendered* content changes. Used for the
-  two corporate-config scripts: if the proxy URL rotates or `is_corporate` changes, the template
-  output differs, and chezmoi treats that as new content to run.
-- `before_` / `after_` — controls execution relative to file application: `before_` scripts run
-  first, `after_` scripts run after every managed file (`dot_*`) is already on disk.
+   ```python
+   #!/usr/bin/env -S uv run
+   # /// script
+   # requires-python = ">=3.12"
+   # dependencies = ["httpx"]
+   # ///
+   import httpx
+   print(httpx.get("https://example.com").status_code)
+   ```
 
-**The gotcha:** scripts execute in alphabetical order of their *full filename*. Comparing the
-literal strings `run_once_` and `run_onchange_`, they diverge at `e` (once) vs `h` (onchange) —
-and `e` sorts before `h`. That means **every `run_once_` script alphabetically precedes every
-`run_onchange_` script, regardless of any numeric prefix you add.** A numeric prefix alone
-(`run_onchange_00-x.sh`, `run_once_10-y.sh`) will NOT force the onchange script to run first.
+2. `chezmoi add ~/.local/bin/<name>`, then commit and push.
 
-This is why the corporate CA-cert and apt-proxy scripts are explicitly named
-`run_onchange_before_00-...` / `run_onchange_before_01-...` — the `before_` infix forces them to
-run before *any* `after_` script, sidestepping the once/onchange sort order entirely. If you add
-a new script, always include `before_` or `after_` explicitly rather than relying on numeric
-prefixes to control phase ordering.
+**Check:** `command -v <name>` in a new terminal prints `~/.local/bin/<name>`.
 
----
+## Neovim
 
-## Corporate-environment config
+### First launch
 
-`chezmoi init` asks once whether this is a corporate-managed machine (`is_corporate`), storing
-the answer — and, if true, a proxy URL and CA cert path — in the local, uncommitted
-`~/.config/chezmoi/chezmoi.toml`. Every corporate-conditional file/script reads from that same
-data via `{{ if .is_corporate }}`.
+**When:** the first time you run `nvim` on a machine.
 
-If you later move an already-initialized personal machine to a corporate network (flipping
-`is_corporate` from false to true), `chezmoi init` won't automatically re-prompt for the proxy
-URL and cert path — those keys already exist (as empty strings) from the first run, and
-chezmoi's `promptStringOnce`/`promptBoolOnce` only prompt when a key is *absent*. Work around
-this by editing `~/.config/chezmoi/chezmoi.toml` directly (set `is_corporate = true` and fill in
-the two string values, or delete the file entirely) before the next `chezmoi apply`.
+**Steps**
 
----
+1. Run `nvim` and wait: language servers, formatters, and syntax parsers download and build now
+   (plugins were installed during bootstrap).
+2. Run `:LazyHealth` and fix anything marked as an error.
+
+**Check:** opening a `.py` or `.rs` file shows diagnostics.
+
+### Change LazyVim Extras
+
+**When:** you want more or fewer language packs or tools.
+
+**Steps**
+
+1. On this machine: `:LazyExtras`, toggle, restart Neovim.
+2. For future machines: edit `dot_config/nvim/create_lazyvim.json`
+   ([CONTRIBUTING R9](CONTRIBUTING.md#r9-change-the-lazyvim-extras-seed)).
+
+**Check:** `~/.config/nvim/lazyvim.json` lists the Extras you expect.
+
+Enabled by default: rust, python, sql, json, yaml, toml, markdown, docker, dotnet, git, chezmoi, dot.
+
+### Set a SQL dialect per project
+
+**When:** a project's SQL is Postgres or Snowflake rather than ANSI.
+
+**Steps**
+
+1. Add `.sqlfluff` to the project root:
+
+   ```ini
+   [sqlfluff]
+   dialect = postgres
+   ```
+
+   Use `snowflake` for Snowflake. Without this file, `~/.sqlfluff` applies `ansi`.
+
+**Check:** formatting a `.sql` file no longer flags dialect-specific syntax.
+
+### Connect to databases
+
+**When:** querying a database from Neovim or the terminal.
+
+| Database | How |
+|---|---|
+| Postgres | In Neovim, open dadbod-ui and add a connection URL such as `postgresql://user@host/db`; it uses `psql`. |
+| Snowflake | Terminal only, with the `snow` CLI (`snow connection add`, then `snow sql`). Neovim's dadbod needs the legacy `snowsql`, which is not installed. |
+
+### Install the Nerd Font
+
+**When:** icons in Neovim show as boxes or question marks.
+
+| Where `nvim` runs | Steps |
+|---|---|
+| macOS terminal | Already installed (JetBrainsMono Nerd Font). Select it in the terminal's font settings. |
+| WSL in Windows Terminal | Download `JetBrainsMono.zip` from the official [nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts/releases), right-click the `.ttf` files and choose **Install** (current user, no admin), then pick **JetBrainsMono Nerd Font** in Windows Terminal → Ubuntu profile → Appearance → Font face. |
+
+Avoid the winget package `DEVCOM.JetBrainsMonoNerdFont`: it is an unofficial repackaging that
+requires admin.
+
+### Re-run the LazyVim bootstrap
+
+**When:** the bootstrap printed "already has a config; skipping" and you now want LazyVim.
+
+**Steps**
+
+1. `mv ~/.config/nvim ~/.config/nvim.bak`
+2. `chezmoi apply` (restores the two managed files).
+3. Run the bootstrap script directly; it is `run_once_`, so `chezmoi apply` will not repeat it:
+
+   ```bash
+   chezmoi execute-template < "$(chezmoi source-path)/run_once_after_19-install-neovim-lazyvim.sh.tmpl" | bash
+   ```
+
+**Check:** `~/.config/nvim/lua/config/lazy.lua` exists.
+
+## Corporate machines
+
+### Switch a personal machine to corporate
+
+**When:** a machine set up as personal moves behind the corporate proxy.
+
+**Steps**
+
+1. Edit `~/.config/chezmoi/chezmoi.toml`: set `is_corporate = true`, and fill in
+   `corporate_proxy_url` and `corporate_ca_cert_source_path`. (`chezmoi init` will not ask again:
+   the keys already exist.)
+2. `chezmoi apply`. The CA and apt-proxy scripts run, and install scripts whose content changed
+   re-run once.
+
+**Check:** `env | grep -i proxy` in a new terminal shows four variables.
+
+### What is configured for you
+
+Proxy settings, CA trust per tool, and telemetry opt-outs are listed in
+[ARCHITECTURE layer 6](ARCHITECTURE.md#6-corporate-network), together with known gaps.
+
+## JetBrains settings
+
+JetBrains Sync stays off: syncing PyCharm, Rider, and RustRover overwrites one IDE's settings with
+another's.
+
+| Task | Steps |
+|---|---|
+| Export | File → Manage IDE Settings → Export Settings → save the zip to `jetbrains/` in this repo, then commit. |
+| Import | File → Manage IDE Settings → Import Settings → pick that IDE's zip. |
 
 ## Troubleshooting
 
-### `chezmoi` command not found
-
-`~/.local/bin` isn't in PATH yet for this session. Either restart your shell, or:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-This is temporary — your managed `.zshrc` has the permanent fix, which takes effect on next shell start.
-
-### `chezmoi diff` shows unexpected changes
-
-You (or a tool) edited the file directly in `~` instead of through chezmoi.
-
-- To keep the home version: `chezmoi re-add ~/.the/file`
-- To revert home to what source says: `chezmoi apply`
-
-### Changes on GitHub aren't showing up
-
-`chezmoi apply` only reads local source. To also pull from GitHub first:
-
-```bash
-chezmoi update    # pull + apply
-```
-
-### You edited a file on Mac, want it on WSL (or vice versa)
-
-On the machine where you made changes:
-```bash
-chezmoi cd && git add -A && git commit -m "..." && git push
-```
-
-On the other machine:
-```bash
-chezmoi update
-```
+| Symptom | Cause | Fix |
+|---|---|---|
+| `chezmoi: command not found` right after bootstrap | The installer put `chezmoi` in `./bin` of the directory you ran it from; `~/bin` is on PATH only in new zsh terminals | Open a new terminal, or run `./bin/chezmoi`; if you ran the one-liner elsewhere, move `bin/chezmoi` to `~/.local/bin`. |
+| `chezmoi diff` shows changes you did not make in source | A target in `~` was edited directly | Keep the edit: `chezmoi re-add <file>`. Discard it: `chezmoi apply`. |
+| Changes pushed from another machine are missing | `chezmoi apply` reads only the local source | `chezmoi update` |
+| git asks for a GitHub username or password | Not logged in to `gh` | `gh auth login` |
+| A command works in a terminal but not through `wsl.exe <cmd>` | Its setup is only in `~/.zshrc` | See [ARCHITECTURE layer 5](ARCHITECTURE.md#5-shell-environment). |
+| The same install script runs on every `chezmoi apply` | Its self-check keeps failing | Read the script's error output in the `chezmoi apply` log. |
+| Neovim icons show as boxes | No Nerd Font selected | [Install the Nerd Font](#install-the-nerd-font) |

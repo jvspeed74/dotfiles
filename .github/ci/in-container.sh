@@ -57,6 +57,8 @@ check "#8 chrome-headless-shell downloaded by after_16" \
 check "#4 no ~/.zshrc.pre-oh-my-zsh" test ! -e "$HOME/.zshrc.pre-oh-my-zsh"
 check "#4 ~/.zshrc matches the managed template" cmp -s <(chezmoi cat "$HOME/.zshrc") "$HOME/.zshrc"
 check "chezmoi status is clean after bootstrap" test -z "$(chezmoi status)"
+check "docs: README, GUIDE, ARCHITECTURE, CONTRIBUTING are not applied to ~" \
+    test ! -e "$HOME/README.md" -a ! -e "$HOME/GUIDE.md" -a ! -e "$HOME/ARCHITECTURE.md" -a ! -e "$HOME/CONTRIBUTING.md"
 if [[ -n "$(chezmoi status)" ]]; then chezmoi status; chezmoi diff | head -60; fi
 
 check "#3/#10 github.com helper is !$brew_bin/gh" \
