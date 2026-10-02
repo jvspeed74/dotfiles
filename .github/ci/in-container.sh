@@ -137,7 +137,8 @@ if [[ $mode == corporate ]]; then
     check "CA installed by before_00" test -f /usr/local/share/ca-certificates/corporate-root-ca.crt
 
     check "#5 npm reaches the registry through the TLS proxy" zsh -i -c 'npm ping >/dev/null 2>&1' </dev/null
-    npm_ctl=$(zsh -i -c 'unset NODE_EXTRA_CA_CERTS; npm ping 2>&1' </dev/null || true)
+    # No retries: the failure is certain, and npm's default backoff spent about 70 s per run.
+    npm_ctl=$(zsh -i -c 'unset NODE_EXTRA_CA_CERTS; npm ping --fetch-retries=0 2>&1' </dev/null || true)
     check "#5 control: npm fails with a cert error without NODE_EXTRA_CA_CERTS" grep -qi 'cert' <<<"$npm_ctl"
 
     check "#5 uv downloads through the TLS proxy" zsh -i -c \

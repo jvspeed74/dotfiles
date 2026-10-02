@@ -381,7 +381,7 @@ An existing config always wins: any unmanaged file in `~/.config/nvim` stops the
 **Responsibility:** run layers 1–7 from scratch on every pull request, including behind a
 TLS-intercepting proxy.
 
-**Files:** `.github/workflows/bootstrap.yml`, `.github/ci/Dockerfile`, `.github/ci/templates.sh`,
+**Files:** `.github/workflows/bootstrap.yml`, `.github/workflows/docs.yml`, `.github/ci/Dockerfile`, `.github/ci/templates.sh`,
 `.github/ci/run-bootstrap.sh`, `.github/ci/in-container.sh`, `.github/ci/docs.sh`,
 `.github/ci/check_links.py`.
 
@@ -389,21 +389,27 @@ TLS-intercepting proxy.
 
 ```mermaid
 flowchart LR
-    W["bootstrap.yml<br/>on pull request"] --> T["templates<br/>render, bash -n"]
-    W --> P["bootstrap-personal<br/>fresh container"]
-    W --> C["bootstrap-corporate<br/>internal network"]
-    W --> D["docs<br/>mermaid, links"]
+    W["bootstrap.yml<br/>code changes"] --> T["templates<br/>render, bash -n"]
+    W --> P["bootstrap-personal<br/>Homebrew downloads cached"]
+    W --> C["bootstrap-corporate<br/>internal network, no cache"]
     C --> X["mitmproxy<br/>re-signs TLS"]
     X --> I["internet"]
+    W2["docs.yml<br/>every pull request"] --> D["docs<br/>mermaid, links"]
 ```
 
 The corporate job's container has no route out except mitmproxy, so any tool that ignores the
-proxy or the corporate CA fails the job.
+proxy or the corporate CA fails the job. It never uses a cache: a cache hit would skip the very
+downloads it tests.
+
+| Workflow | Runs on |
+|---|---|
+| `bootstrap.yml` | Pull requests touching `dot_*`, `run_*`, `.chezmoi*`, or `.github/**` (except the docs checker files); manual runs |
+| `docs.yml` | Every pull request; manual runs |
 
 | Job | Proves |
 |---|---|
 | `templates` | Every template renders for both profiles; every script passes `bash -n`; key lines are present or absent per OS and profile. |
-| `bootstrap-personal` | A full bootstrap in `ubuntu:24.04` succeeds; tools resolve; `chezmoi status` is clean; a second apply changes nothing. |
+| `bootstrap-personal` | A full bootstrap in `ubuntu:24.04` succeeds; tools resolve; `chezmoi status` is clean; a second apply changes nothing. Homebrew downloads come from a weekly cache; every install step still runs. |
 | `bootstrap-corporate` | The same through the intercepting proxy, plus CA and proxy behavior per tool, with negative controls. |
 | `docs` | Every Mermaid diagram renders; every relative link, anchor, and backticked repo path resolves. |
 | `macos` (manual) | macOS template renders; the `gh` credential helper with a minimal PATH. |

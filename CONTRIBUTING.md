@@ -82,7 +82,11 @@ x86_64, which is emulated and slow on Apple Silicon; CI runs it natively.
 
 ## CI
 
-The jobs and what each proves are in [ARCHITECTURE layer 8](ARCHITECTURE.md#8-verification-ci).
+The jobs, which workflow runs them, and what each proves are in
+[ARCHITECTURE layer 8](ARCHITECTURE.md#8-verification-ci). A docs-only change runs only `docs.yml`.
+Never add a download cache to `bootstrap-corporate`: a cache hit skips the proxy and CA path the
+job exists to test.
+
 Reading a failure:
 
 | Job | Where to look |
