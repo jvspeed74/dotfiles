@@ -1,0 +1,5 @@
+# Default SQLFluff dialect. A project overrides it with its own .sqlfluff, e.g.
+#   [sqlfluff]
+#   dialect = postgres    (or snowflake)
+[sqlfluff]
+dialect = ansi

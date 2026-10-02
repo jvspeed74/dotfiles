@@ -124,6 +124,42 @@ if [[ $os == Linux ]]; then
         bash -c "grep -qF 'apt-get install -y build-essential procps curl file git' '$C/run_once_after_05-install-homebrew.sh' && grep -qF 'NONINTERACTIVE=1' '$C/run_once_after_05-install-homebrew.sh'"
 fi
 
+# nvim: Neovim + LazyVim bootstrap (after_19), dev clients (after_20), shell env, managed nvim files.
+A19="$C/run_once_after_19-install-neovim-lazyvim.sh"
+A20="$C/run_once_after_20-install-dev-clients.sh"
+check "nvim: after_19 evals brew shellenv" has "$A19" "$shellenv"
+check "nvim: after_19 installs neovim, tree-sitter-cli, fzf" has "$A19" "brew install neovim tree-sitter-cli fzf"
+if [[ $os == Darwin ]]; then
+    check "nvim: after_19 installs the JetBrainsMono Nerd Font cask (macOS)" has "$A19" "brew install --cask font-jetbrains-mono-nerd-font"
+else
+    check "nvim: after_19 has no font cask on Linux" lacks "$A19" "font-jetbrains-mono-nerd-font"
+fi
+check "nvim: after_20 evals brew shellenv" has "$A20" "$shellenv"
+check "nvim: after_20 installs dotnet, libpq, snowflake-cli" has "$A20" "brew install dotnet libpq snowflake-cli"
+for dir in "$C" "$P"; do
+    p=$(basename "$dir")
+    check "nvim: $p .zshenv sets EDITOR/VISUAL guarded" has "$dir/dot_zshenv" \
+        "[[ -x $brew_prefix/bin/nvim ]] && export EDITOR=$brew_prefix/bin/nvim VISUAL=$brew_prefix/bin/nvim"
+    check "nvim: $p .zshenv sets DOTNET_ROOT guarded" has "$dir/dot_zshenv" \
+        "[[ -d $brew_prefix/opt/dotnet/libexec ]] && export DOTNET_ROOT=$brew_prefix/opt/dotnet/libexec"
+    check "nvim: $p .zshenv adds keg-only libpq to PATH" has "$dir/dot_zshenv" "export PATH=\"$brew_prefix/opt/libpq/bin:\$PATH\""
+    check "nvim: $p .zshrc no longer has the commented EDITOR block" lacks "$dir/dot_zshrc" "EDITOR"
+done
+if [[ $os == Linux ]]; then
+    check "nvim: corp .zshenv sets PIP_CERT (Linux)" has "$C/dot_zshenv" "export PIP_CERT=/etc/ssl/certs/ca-certificates.crt"
+else
+    check "nvim: corp .zshenv has no PIP_CERT (macOS)" lacks "$C/dot_zshenv" "PIP_CERT"
+fi
+check "nvim: personal .zshenv has no PIP_CERT" lacks "$P/dot_zshenv" "PIP_CERT"
+check "nvim: after_10 installs python3-venv" \
+    bash -c "grep -qE '^ +python3-venv ' '$C/run_once_after_10-install-apt-packages.sh'"
+check "nvim: lazyvim.json seeds 12 extras" count_is "$repo/dot_config/nvim/create_lazyvim.json" '"lazyvim.plugins.extras.' 12
+check "nvim: ~/.sqlfluff defaults to ansi" bash -c "grep -qx 'dialect = ansi' '$repo/dot_sqlfluff'"
+# Lua comments start with "--", so drop comment lines before checking for CLI flags.
+sql_code=$(grep -vE '^[[:space:]]*--' "$repo/dot_config/nvim/lua/plugins/sql.lua")
+check "nvim: sql.lua passes --stdin-filename and no --dialect" \
+    bash -c 'grep -qF -- "--stdin-filename" <<<"$1" && ! grep -qF -- "--dialect" <<<"$1"' _ "$sql_code"
+
 # #3 live check (macOS runner): the rendered helper returns credentials with a GUI-style PATH.
 if [[ $os == Darwin && -n "${GH_TOKEN:-}" ]]; then
     check "#3 helper returns credentials with PATH=/usr/bin:/bin:/usr/sbin:/sbin" bash -c "

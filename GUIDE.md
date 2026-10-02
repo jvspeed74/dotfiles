@@ -68,7 +68,15 @@ chezmoi copies the file into source and handles the renaming automatically.
 chezmoi add ~/.config/nvim
 ```
 
-Recursively adds everything under that directory. Do this when you've set up LazyVim and want to commit the full config.
+Recursively adds everything under that directory. LazyVim is bootstrapped from the starter by
+`run_once_after_19-install-neovim-lazyvim.sh.tmpl`, not tracked; run this once you've customized
+`~/.config/nvim` and want the full config synced. Two files there are already managed:
+`lazyvim.json` is a **create-only** seed (`create_` prefix: written when missing, never
+overwritten, so `:LazyExtras` changes stay local — edit the seed to change Extras for new machines),
+and `lua/plugins/sql.lua` is a normal managed file.
+
+Per-project SQL dialect: add a `.sqlfluff` in the project root with `[sqlfluff]` and
+`dialect = postgres` (or `snowflake`); `~/.sqlfluff` supplies the `ansi` default.
 
 ---
 

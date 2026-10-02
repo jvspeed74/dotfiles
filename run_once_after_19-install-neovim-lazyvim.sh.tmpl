@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if .is_corporate -}}
+export HTTP_PROXY={{ .corporate_proxy_url | quote }}
+export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+{{ end -}}
+
+eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
+# LazyVim requirements (lazyvim.org): Neovim >= 0.11.2, tree-sitter CLI, fzf. git, curl, a C
+# compiler, ripgrep, fd, and lazygit come from earlier scripts.
+brew install neovim tree-sitter-cli fzf
+{{ if eq .chezmoi.os "darwin" -}}
+# Nerd Font for LazyVim's icons; select it in the terminal's settings. Under WSL the font must be
+# installed on Windows instead (see README).
+brew install --cask font-jetbrains-mono-nerd-font
+{{ end -}}
+
+for tool in nvim tree-sitter fzf; do
+    command -v "$tool" >/dev/null || { echo "$tool not on PATH after install" >&2; exit 1; }
+done
+nvim --headless -c 'if has("nvim-0.11.2") | qa | else | cq | endif' \
+    || { echo "LazyVim needs Neovim >= 0.11.2; got: $(nvim --version | head -n1)" >&2; exit 1; }
+
+nvim_dir="$HOME/.config/nvim"
+# Files chezmoi manages inside the config dir; any other file means a config already exists.
+managed_re='^(lazyvim\.json|lua/plugins/sql\.lua)$'
+
+if [[ -f "$nvim_dir/lua/config/lazy.lua" ]]; then
+    echo "LazyVim starter already present in $nvim_dir."
+elif [[ -d "$nvim_dir" ]] && (cd "$nvim_dir" && find . -type f | sed 's#^\./##' | grep -vqE "$managed_re"); then
+    echo "$nvim_dir already has a config; skipping the LazyVim bootstrap (see README)." >&2
+    exit 0
+else
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    git clone --depth 1 https://github.com/LazyVim/starter "$tmp/starter"
+    rm -rf "$tmp/starter/.git"
+    # Copy without overwriting the chezmoi-managed files (lazyvim.json, lua/plugins/sql.lua).
+    (cd "$tmp/starter" && find . -type f | sed 's#^\./##') | while IFS= read -r f; do
+        [[ -e "$nvim_dir/$f" ]] && continue
+        mkdir -p "$(dirname "$nvim_dir/$f")"
+        cp "$tmp/starter/$f" "$nvim_dir/$f"
+    done
+fi
+
+# Clone lazy.nvim the way the starter's lua/config/lazy.lua would. If its own clone fails it
+# waits for a keypress, which would hang this unattended run; failing here is visible instead.
+lazy_root="${XDG_DATA_HOME:-$HOME/.local/share}/nvim/lazy"
+if [[ ! -d "$lazy_root/lazy.nvim" ]]; then
+    git clone --filter=blob:none --branch=stable https://github.com/folke/lazy.nvim.git "$lazy_root/lazy.nvim"
+fi
+
+# Install plugins without opening the editor; the "!" waits for completion. Parsers and Mason
+# tools install on first interactive launch.
+nvim --headless "+Lazy! sync" +qa </dev/null
+
+# nvim can exit 0 even if plugins failed. LazyVim is core; vim-dadbod and crates.nvim come from
+# the lang.sql and lang.rust extras, so they prove lazyvim.json was read.
+for plugin in LazyVim vim-dadbod crates.nvim; do
+    [[ -d "$lazy_root/$plugin" ]] || { echo "plugin $plugin missing after Lazy sync" >&2; exit 1; }
+done
