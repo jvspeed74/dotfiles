@@ -6,31 +6,64 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 
 | Source file | Where it lands |
 |---|---|
-| `dot_zshrc` | `~/.zshrc` |
-| `dot_gitconfig` | `~/.gitconfig` |
+| `dot_zshrc.tmpl` | `~/.zshrc` |
+| `dot_gitconfig.tmpl` | `~/.gitconfig` |
+| `dot_npmrc.tmpl` | `~/.npmrc` |
+| `dot_cargo/config.toml.tmpl` | `~/.cargo/config.toml` |
 | `dot_config/nvim/` | `~/.config/nvim/` (LazyVim) |
 | `dot_config/lazygit/` | `~/.config/lazygit/` |
 | `dot_local/bin/` | `~/.local/bin/` (custom scripts, in PATH) |
 
-`jetbrains/` and `install.sh` live in this repo but are **not** applied to home.
+`jetbrains/` lives in this repo but is **not** applied to home.
+
+## Tool inventory (auto-installed via `run_once_after_*` scripts)
+
+| Tool | Script |
+|---|---|
+| Homebrew (Mac only) | `run_once_after_05-install-homebrew.sh.tmpl` |
+| build-essential, ripgrep, fd, unzip, golang-go, headless-Chrome runtime libs (Linux only) | `run_once_after_10-install-apt-packages.sh` |
+| Rust (rustup/cargo) | `run_once_after_11-install-rustup.sh.tmpl` |
+| Node.js LTS (nvm) | `run_once_after_12-install-nvm-node.sh.tmpl` |
+| uv | `run_once_after_13-install-uv.sh.tmpl` |
+| Oh My Zsh + zsh-autosuggestions + zsh-syntax-highlighting | `run_once_after_14-install-oh-my-zsh.sh.tmpl` |
+| lazygit (brew on Mac, built from source on Linux — not in apt) | `run_once_after_15-build-lazygit.sh.tmpl` |
+| mermaid-cli + headless Chrome | `run_once_after_16-install-mermaid-cli.sh.tmpl` |
+
+Each runs once (chezmoi tracks a content hash) and self-checks that the tool actually works
+before exiting successfully.
 
 ## Bootstrap a new machine
 
-**Step 1 — Install chezmoi and pull your configs**
+**One step:**
 
 ```bash
 bash -c "$(curl -fsLS get.chezmoi.io)" -- init --apply jvspeed74
 ```
 
-This downloads chezmoi, clones this repo, and applies all managed files to `~` in one shot.
+This downloads chezmoi, clones this repo, applies all managed files to `~`, and runs every
+tool-install script above, in order — no second script to run manually anymore.
 
-**Step 2 — Run the install script** (Oh My Zsh, zsh plugins, uv)
+**Must run in a real interactive terminal** — not backgrounded, piped, or run from cron/CI.
+Several steps prompt for your sudo password (importing a corporate CA cert, apt package
+installs), and a non-interactive invocation will hang or fail rather than prompt.
 
-```bash
-bash ~/.local/share/chezmoi/install.sh
-```
+You'll be asked:
 
-**Step 3 — Restart your shell**
+- **"Is this a corporate-managed machine?"** — answer `false` on a personal machine and every
+  corporate-specific step below becomes a clean no-op. Answer `true` on a corporate machine and
+  you'll be asked two more questions:
+  - **Corporate proxy URL** — used to configure apt, git, npm, cargo, and your shell's
+    `HTTP_PROXY`/`HTTPS_PROXY`.
+  - **Path to your exported corporate root CA cert** — **export this from the Windows cert
+    store to a path reachable from WSL (e.g. under `/mnt/c/...`) *before* running `chezmoi init`**,
+    since this prompt happens during init, not after.
+
+These answers are stored locally in `~/.config/chezmoi/chezmoi.toml` — never committed to this
+repo.
+
+**Not covered here:** WSL2 "mirrored networking mode" is a Windows-host `.wslconfig` setting
+(`networkingMode=mirrored`), not something any WSL-side script can configure. Set it manually if
+needed, then `wsl --shutdown` to apply it.
 
 ## Quick reference
 

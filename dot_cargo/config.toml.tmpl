@@ -1,0 +1,4 @@
+{{- if .is_corporate }}
+[http]
+proxy = {{ .corporate_proxy_url | quote }}
+{{- end }}

@@ -6,11 +6,15 @@ chezmoi keeps a **source directory** (`~/.local/share/chezmoi/`) that mirrors yo
 
 The naming convention exists because git can't track dotfiles that start with `.` easily when you're also versioning the directory itself. chezmoi solves this by renaming:
 
-- `dot_zshrc` in source → `.zshrc` in `~`
+- `dot_zshrc.tmpl` in source → `.zshrc` in `~`
 - `dot_config/nvim/` in source → `~/.config/nvim/`
 - `dot_local/bin/` in source → `~/.local/bin/`
 
-Files listed in `.chezmoiignore` (`install.sh`, `jetbrains/`, the markdown files) exist in the source repo but are never applied to `~`.
+A `.tmpl` suffix (e.g. `dot_zshrc.tmpl`, `dot_gitconfig.tmpl`) means the file is processed as a
+Go template before being written to `~` — used here for the `{{ if .is_corporate }}` conditional
+blocks (see "Corporate-environment config" below).
+
+Files listed in `.chezmoiignore` (`jetbrains/`, the markdown files) exist in the source repo but are never applied to `~`.
 
 **Rule:** don't edit managed files directly in `~`. Use `chezmoi edit <file>` instead. If you do edit in `~` directly, run `chezmoi re-add` to pull those changes back into source before they get overwritten.
 
@@ -111,21 +115,70 @@ Save to `~/.local/bin/my-script.py`, make it executable, then `chezmoi add`. uv 
 
 ## OS-specific zsh config
 
-Your `.zshrc` runs on both Mac and WSL. Use this pattern for anything platform-specific:
+`dot_zshrc.tmpl` runs on both Mac and WSL. Since it's a template now, prefer chezmoi's
+template-time OS detection over a runtime `uname` check:
 
 ```zsh
-if [[ "$(uname)" == "Darwin" ]]; then
-    # Mac only
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-elif grep -qi microsoft /proc/version 2>/dev/null; then
-    # WSL only
-    export BROWSER=wslview
-fi
+{{ if eq .chezmoi.os "darwin" -}}
+# Mac only
+eval "$(/opt/homebrew/bin/brew shellenv)"
+{{ else if .chezmoi.kernel.osrelease | lower | contains "microsoft" -}}
+# WSL only
+export BROWSER=wslview
+{{ end -}}
 
 # Everything below runs on both
 ```
 
-Add that block to `.zshrc` via `chezmoi edit ~/.zshrc`.
+Add that block via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the file,
+rather than every shell startup — slightly faster, and consistent with how the corporate proxy
+block already works in this file.
+
+---
+
+## Scripts: `run_once_`, `run_onchange_`, and the `before_`/`after_` ordering gotcha
+
+Tool installs (rustup, nvm, uv, apt packages, etc.) and corporate system setup (CA cert import,
+apt proxy config) live as chezmoi scripts, not a separate `install.sh` — see the
+[README's tool inventory](README.md#tool-inventory-auto-installed-via-run_once_after_-scripts).
+
+**Naming:** `run_[once_|onchange_][before_|after_]<name>.sh[.tmpl]`
+
+- `run_once_` — runs once ever (chezmoi hashes the rendered content; never reruns after success).
+  Used for tool installs: installing rustup twice is pointless, not harmful, so "once" is right.
+- `run_onchange_` — reruns automatically whenever its *rendered* content changes. Used for the
+  two corporate-config scripts: if the proxy URL rotates or `is_corporate` changes, the template
+  output differs, and chezmoi treats that as new content to run.
+- `before_` / `after_` — controls execution relative to file application: `before_` scripts run
+  first, `after_` scripts run after every managed file (`dot_*`) is already on disk.
+
+**The gotcha:** scripts execute in alphabetical order of their *full filename*. Comparing the
+literal strings `run_once_` and `run_onchange_`, they diverge at `e` (once) vs `h` (onchange) —
+and `e` sorts before `h`. That means **every `run_once_` script alphabetically precedes every
+`run_onchange_` script, regardless of any numeric prefix you add.** A numeric prefix alone
+(`run_onchange_00-x.sh`, `run_once_10-y.sh`) will NOT force the onchange script to run first.
+
+This is why the corporate CA-cert and apt-proxy scripts are explicitly named
+`run_onchange_before_00-...` / `run_onchange_before_01-...` — the `before_` infix forces them to
+run before *any* `after_` script, sidestepping the once/onchange sort order entirely. If you add
+a new script, always include `before_` or `after_` explicitly rather than relying on numeric
+prefixes to control phase ordering.
+
+---
+
+## Corporate-environment config
+
+`chezmoi init` asks once whether this is a corporate-managed machine (`is_corporate`), storing
+the answer — and, if true, a proxy URL and CA cert path — in the local, uncommitted
+`~/.config/chezmoi/chezmoi.toml`. Every corporate-conditional file/script reads from that same
+data via `{{ if .is_corporate }}`.
+
+If you later move an already-initialized personal machine to a corporate network (flipping
+`is_corporate` from false to true), `chezmoi init` won't automatically re-prompt for the proxy
+URL and cert path — those keys already exist (as empty strings) from the first run, and
+chezmoi's `promptStringOnce`/`promptBoolOnce` only prompt when a key is *absent*. Work around
+this by editing `~/.config/chezmoi/chezmoi.toml` directly (set `is_corporate = true` and fill in
+the two string values, or delete the file entirely) before the next `chezmoi apply`.
 
 ---
 

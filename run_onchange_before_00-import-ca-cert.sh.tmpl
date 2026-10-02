@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if .is_corporate -}}
+sudo -v
+
+SRC="{{ .corporate_ca_cert_source_path }}"
+if [[ -z "$SRC" ]]; then
+    echo "corporate_ca_cert_source_path is empty; skipping CA cert import." >&2
+    exit 1
+fi
+if [[ ! -f "$SRC" ]]; then
+    echo "CA cert not found at $SRC" >&2
+    exit 1
+fi
+
+{{ if eq .chezmoi.os "darwin" -}}
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$SRC"
+{{ else -}}
+sudo cp "$SRC" /usr/local/share/ca-certificates/corporate-root-ca.crt
+sudo update-ca-certificates
+{{ end -}}
+
+command -v openssl >/dev/null 2>&1 && openssl x509 -in "$SRC" -noout || {
+    echo "Imported cert failed openssl sanity check" >&2
+    exit 1
+}
+echo "Corporate CA cert imported."
+{{ else -}}
+exit 0
+{{ end -}}

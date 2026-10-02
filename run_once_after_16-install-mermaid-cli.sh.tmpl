@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if .is_corporate -}}
+export HTTP_PROXY={{ .corporate_proxy_url | quote }}
+export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+{{ end -}}
+
+export NVM_DIR="$HOME/.nvm"
+# shellcheck disable=SC1091
+\. "$NVM_DIR/nvm.sh"
+
+npm install -g @mermaid-js/mermaid-cli
+npx puppeteer browsers install chrome-headless-shell
+
+command -v mmdc >/dev/null || { echo "mermaid-cli install failed" >&2; exit 1; }
+mmdc --version >/dev/null || { echo "mmdc did not report a version" >&2; exit 1; }

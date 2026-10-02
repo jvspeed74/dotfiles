@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if .is_corporate -}}
+export HTTP_PROXY={{ .corporate_proxy_url | quote }}
+export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+{{ end -}}
+
+export NVM_DIR="$HOME/.nvm"
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+# shellcheck disable=SC1091
+\. "$NVM_DIR/nvm.sh"
+nvm install --lts
+
+command -v node >/dev/null || { echo "nvm/node install failed" >&2; exit 1; }
+node --version >/dev/null || { echo "node did not report a version" >&2; exit 1; }

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if .is_corporate -}}
+export HTTP_PROXY={{ .corporate_proxy_url | quote }}
+export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+{{ end -}}
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+"$HOME/.local/bin/uv" --version >/dev/null || { echo "uv install failed" >&2; exit 1; }
