@@ -1,6 +1,7 @@
 {{ if eq .chezmoi.os "darwin" -}}
-# Homebrew (Apple Silicon). Before the PATH line below so ~/.local/bin still takes precedence.
-eval "$(/opt/homebrew/bin/brew shellenv)"
+# Homebrew (macOS). Before the PATH line below so ~/.local/bin still takes precedence.
+# On Linux, ~/.zshenv sets this up instead so non-interactive shells get it too.
+[[ -x {{ template "brew-prefix" . }}/bin/brew ]] && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 
 {{ end -}}
 # If you come from bash you might have to change your $PATH.

@@ -6,11 +6,8 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
-{{ if eq .chezmoi.os "darwin" -}}
-eval "$(/opt/homebrew/bin/brew shellenv)"
+eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 brew install gh
-{{ end -}}
 
-# On Linux, gh is installed by run_once_after_10-install-apt-packages.sh; only verify here.
 command -v gh >/dev/null || { echo "gh not on PATH after install" >&2; exit 1; }
 gh --version >/dev/null || { echo "gh binary did not run" >&2; exit 1; }

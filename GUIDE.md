@@ -119,22 +119,21 @@ Save to `~/.local/bin/my-script.py`, make it executable, then `chezmoi add`. uv 
 template-time OS detection over a runtime `uname` check:
 
 ```zsh
-{{ if eq .chezmoi.os "darwin" -}}
-# Mac only
-eval "$(/opt/homebrew/bin/brew shellenv)"
-{{ else if .chezmoi.kernel.osrelease | lower | contains "microsoft" -}}
+{{ if .chezmoi.kernel.osrelease | lower | contains "microsoft" -}}
 # WSL only
 export BROWSER=wslview
 {{ end -}}
-
-# Everything below runs on both
 ```
 
-The Mac branch already exists at the top of `dot_zshrc.tmpl` (Homebrew's `shellenv`, placed before
-the `PATH` export so `~/.local/bin` keeps precedence); add other branches, like the WSL one, the
-same way via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the file,
-rather than every shell startup — slightly faster, and consistent with how the corporate proxy
+Add branches like that via `chezmoi edit ~/.zshrc`. This resolves once, when chezmoi applies the
+file, rather than every shell startup — slightly faster, and consistent with how the corporate proxy
 block works in `dot_zshenv.tmpl`.
+
+For paths that differ only by OS, prefer a shared partial in `.chezmoitemplates/`. The Homebrew
+prefix is one: `{{ template "brew-prefix" . }}` renders `/opt/homebrew` on Mac and
+`/home/linuxbrew/.linuxbrew` on Linux, and is used by `dot_zshrc.tmpl` (`brew shellenv`, placed
+before the `PATH` export so `~/.local/bin` keeps precedence), `dot_gitconfig.tmpl` (the `gh`
+credential helper), and every script that calls `brew`.
 
 Environment variables that non-interactive commands need (the corporate proxy, cargo's env) go in
 `dot_zshenv.tmpl`, not `.zshrc`: zsh reads `~/.zshenv` for every invocation, including

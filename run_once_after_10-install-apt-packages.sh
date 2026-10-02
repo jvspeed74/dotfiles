@@ -9,18 +9,18 @@ sudo -v
 sudo apt-get update
 sudo apt-get install -y \
     build-essential \
-    ripgrep \
-    fd-find \
     unzip \
     golang-go \
     libnspr4 \
     libnss3 \
     libasound2t64 \
-    zsh \
-    gh
+    zsh
 
-mkdir -p "$HOME/.local/bin"
-ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+# rg, fd, and gh now come from Homebrew (after_17, after_18). Remove the fd -> fdfind symlink an
+# earlier version created; ~/.local/bin precedes Homebrew in PATH and would shadow brew's fd.
+if [[ -L "$HOME/.local/bin/fd" && "$(readlink "$HOME/.local/bin/fd")" == *fdfind ]]; then
+    rm "$HOME/.local/bin/fd"
+fi
 
 # Ubuntu defaults to bash; without this, ~/.zshenv and ~/.zshrc are never read.
 zsh_path="$(command -v zsh)"
@@ -28,11 +28,8 @@ if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$zsh_path" ]]; then
     sudo chsh -s "$zsh_path" "$USER"
 fi
 
-command -v rg >/dev/null || { echo "ripgrep install failed" >&2; exit 1; }
-command -v fd >/dev/null || { echo "fd symlink failed" >&2; exit 1; }
 command -v go >/dev/null || { echo "golang-go install failed" >&2; exit 1; }
 command -v unzip >/dev/null || { echo "unzip install failed" >&2; exit 1; }
 gcc --version >/dev/null || { echo "build-essential (gcc) install failed" >&2; exit 1; }
 command -v zsh >/dev/null || { echo "zsh install failed" >&2; exit 1; }
-command -v gh >/dev/null || { echo "gh install failed" >&2; exit 1; }
 [[ "$(getent passwd "$USER" | cut -d: -f7)" == "$zsh_path" ]] || { echo "chsh to zsh failed" >&2; exit 1; }

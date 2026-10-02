@@ -21,15 +21,16 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 
 | Tool | Script |
 |---|---|
-| Homebrew (Mac only) | `run_once_after_05-install-homebrew.sh.tmpl` |
-| build-essential, ripgrep, fd, unzip, golang-go, headless-Chrome runtime libs, zsh + `chsh` to it (Linux only) | `run_once_after_10-install-apt-packages.sh` |
+| Homebrew (Mac: `/opt/homebrew`; Linux: `/home/linuxbrew/.linuxbrew`, plus its apt prerequisites) | `run_once_after_05-install-homebrew.sh.tmpl` |
+| build-essential, unzip, golang-go, headless-Chrome runtime libs, zsh + `chsh` to it (Linux only) | `run_once_after_10-install-apt-packages.sh` |
 | Rust (rustup/cargo) | `run_once_after_11-install-rustup.sh.tmpl` |
 | Node.js LTS (nvm) | `run_once_after_12-install-nvm-node.sh.tmpl` |
 | uv | `run_once_after_13-install-uv.sh.tmpl` |
 | Oh My Zsh + zsh-autosuggestions + zsh-syntax-highlighting | `run_once_after_14-install-oh-my-zsh.sh.tmpl` |
-| lazygit (brew on Mac, built from source on Linux — not in apt) | `run_once_after_15-build-lazygit.sh.tmpl` |
+| lazygit (brew) | `run_once_after_15-install-lazygit.sh.tmpl` |
 | mermaid-cli + headless Chrome | `run_once_after_16-install-mermaid-cli.sh.tmpl` |
-| gh (brew on Mac, apt on Linux) | `run_once_after_17-install-gh.sh.tmpl` |
+| gh (brew) | `run_once_after_17-install-gh.sh.tmpl` |
+| ripgrep, fd (brew) | `run_once_after_18-install-ripgrep-fd.sh.tmpl` |
 
 Each runs once (chezmoi tracks a content hash) and self-checks that the tool actually works
 before exiting successfully.
@@ -99,7 +100,8 @@ TLS-inspecting corporate proxy the CA cert and proxy must already be in place. I
 After bootstrap, the proxy lives in `~/.zshenv`, which every zsh reads (including non-interactive
 `wsl.exe <cmd>`). So does corporate CA trust for tools that ignore the system store: Node gets
 `NODE_EXTRA_CA_CERTS` (the copy `before_00` installs on Linux; your exported cert path on Mac) and
-uv gets `UV_SYSTEM_CERTS=1`. `/etc/environment` is deliberately not used: WSL starts shells without a PAM
+uv gets `UV_SYSTEM_CERTS=1`. Homebrew downloads through the same proxy, so it must allow
+`github.com` (installer, taps) and `ghcr.io` (bottles). `/etc/environment` is deliberately not used: WSL starts shells without a PAM
 session, so `pam_env` never loads it
 ([microsoft/WSL#9213](https://github.com/microsoft/WSL/issues/9213)).
 
