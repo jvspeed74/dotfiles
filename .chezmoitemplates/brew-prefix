@@ -1,0 +1,2 @@
+{{- /* Homebrew prefix per OS; callers append /bin/brew or /bin/gh. */ -}}
+{{- if eq .chezmoi.os "darwin" -}}/opt/homebrew{{- else -}}/home/linuxbrew/.linuxbrew{{- end -}}

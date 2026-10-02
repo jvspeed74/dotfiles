@@ -70,7 +70,9 @@ check "#2 after_11 passes --no-modify-path" has "$C/run_once_after_11-install-ru
 
 # #3: gh credential helper, per-OS absolute path.
 check "#3 .gitconfig starts with [credential" first_line "$C/dot_gitconfig" '[credential "https://github.com"]'
-if [[ $os == Darwin ]]; then gh_path=/opt/homebrew/bin/gh; else gh_path=/usr/bin/gh; fi
+# #9 moved gh to Homebrew on Linux too, so the helper path follows the Homebrew prefix.
+if [[ $os == Darwin ]]; then brew_prefix=/opt/homebrew; else brew_prefix=/home/linuxbrew/.linuxbrew; fi
+gh_path=$brew_prefix/bin/gh
 check "#3 .gitconfig helper is !$gh_path (x2)" count_is "$C/dot_gitconfig" "helper = !$gh_path auth git-credential" 2
 
 # #4: Oh My Zsh keeps the managed .zshrc.
@@ -89,17 +91,24 @@ fi
 check "#5 corp .zshenv: $node_ca" has "$C/dot_zshenv" "$node_ca"
 check "#5 corp after_16: $node_ca" has "$C/run_once_after_16-install-mermaid-cli.sh" "$node_ca"
 
-# #6: brew shellenv on macOS only.
-shellenv='eval "$(/opt/homebrew/bin/brew shellenv)"'
-if [[ $os == Darwin ]]; then
-    check "#6 .zshrc evals brew shellenv" has "$C/dot_zshrc" "$shellenv"
-    check "#6 brew shellenv precedes the PATH export" \
-        bash -c "[[ \$(grep -nF 'brew shellenv' '$C/dot_zshrc' | cut -d: -f1) -lt \$(grep -n '^export PATH=' '$C/dot_zshrc' | cut -d: -f1) ]]"
-    check "#6 after_15 evals brew shellenv" has "$C/run_once_after_15-build-lazygit.sh" "$shellenv"
-else
-    check "#6 Linux .zshrc starts unchanged" first_line "$C/dot_zshrc" "# If you come from bash you might have to change your \$PATH."
-    check "#6 Linux .zshrc has no brew" lacks "$C/dot_zshrc" "brew"
-    check "#6 Linux after_15 has no brew" lacks "$C/run_once_after_15-build-lazygit.sh" "brew"
+# #6 / #9: brew shellenv with the per-OS prefix, before the PATH export, in .zshrc and every brew script.
+shellenv="eval \"\$($brew_prefix/bin/brew shellenv)\""
+check "#6/#9 .zshrc evals brew shellenv ($brew_prefix)" has "$C/dot_zshrc" "$shellenv"
+check "#6/#9 brew shellenv precedes the PATH export" \
+    bash -c "[[ \$(grep -nF 'brew shellenv' '$C/dot_zshrc' | cut -d: -f1) -lt \$(grep -n '^export PATH=' '$C/dot_zshrc' | cut -d: -f1) ]]"
+for script in run_once_after_15-build-lazygit.sh run_once_after_17-install-gh.sh run_once_after_18-install-ripgrep-fd.sh; do
+    check "#9 $script evals brew shellenv ($brew_prefix)" has "$C/$script" "$shellenv"
+done
+check "#9 after_05 targets $brew_prefix/bin/brew" has "$C/run_once_after_05-install-homebrew.sh" "brew_bin=\"$brew_prefix/bin/brew\""
+check "#9 after_15 installs lazygit via brew, no Go build" \
+    bash -c "grep -qF 'brew install lazygit' '$C/run_once_after_15-build-lazygit.sh' && ! grep -q 'go build' '$C/run_once_after_15-build-lazygit.sh'"
+check "#9 after_17 installs gh via brew" has "$C/run_once_after_17-install-gh.sh" "brew install gh"
+check "#9 after_18 installs ripgrep and fd via brew" has "$C/run_once_after_18-install-ripgrep-fd.sh" "brew install ripgrep fd"
+check "#9 after_10 no longer installs ripgrep, fd-find, or gh" \
+    bash -c "! grep -qE '^ +(ripgrep|fd-find|gh)( |\\\\|\$)' '$C/run_once_after_10-install-apt-packages.sh'"
+if [[ $os == Linux ]]; then
+    check "#9 Linux after_05 installs Homebrew prerequisites, non-interactive" \
+        bash -c "grep -qF 'apt-get install -y build-essential procps curl file git' '$C/run_once_after_05-install-homebrew.sh' && grep -qF 'NONINTERACTIVE=1' '$C/run_once_after_05-install-homebrew.sh'"
 fi
 
 # #3 live check (macOS runner): the rendered helper returns credentials with a GUI-style PATH.
