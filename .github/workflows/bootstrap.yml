@@ -8,6 +8,7 @@ on:
       - 'run_*'
       - '.chezmoi*'
       - '.github/**'
+      - '*.md'
   workflow_dispatch:
 
 concurrency:
@@ -41,6 +42,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: .github/ci/run-bootstrap.sh corporate
+
+  docs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - run: .github/ci/docs.sh
 
   # Manual only: macOS minutes bill at a multiple of Linux minutes on private repos.
   # The runner already has Homebrew and gh on PATH, so this cannot reproduce a fresh Mac.
