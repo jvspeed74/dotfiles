@@ -8,7 +8,10 @@ on:
       - 'run_*'
       - '.chezmoi*'
       - '.github/**'
-      - '*.md'
+      # Docs-only changes are checked by docs.yml; they cannot change what a bootstrap applies.
+      - '!.github/ci/docs.sh'
+      - '!.github/ci/check_links.py'
+      - '!.github/workflows/docs.yml'
   workflow_dispatch:
 
 concurrency:
@@ -34,7 +37,19 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+      # Homebrew download cache, personal job only. Install logic still runs in full; Homebrew
+      # verifies cached bottles against the formula's checksum and re-downloads stale ones.
+      # bootstrap-corporate never caches: its downloads crossing the proxy are what it tests.
+      - id: week
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/homebrew-cache
+          key: homebrew-personal-${{ steps.week.outputs.week }}-${{ hashFiles('run_once_after_*') }}
+          restore-keys: homebrew-personal-
       - run: .github/ci/run-bootstrap.sh personal
+        env:
+          HOMEBREW_CACHE_HOST: ${{ runner.temp }}/homebrew-cache
 
   bootstrap-corporate:
     runs-on: ubuntu-24.04
@@ -42,13 +57,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: .github/ci/run-bootstrap.sh corporate
-
-  docs:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-      - run: .github/ci/docs.sh
 
   # Manual only: macOS minutes bill at a multiple of Linux minutes on private repos.
   # The runner already has Homebrew and gh on PATH, so this cannot reproduce a fresh Mac.

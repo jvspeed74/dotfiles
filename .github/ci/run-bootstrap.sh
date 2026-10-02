@@ -14,6 +14,15 @@ docker build --platform linux/amd64 -t "$image" "$ci"
 common=(--rm --platform linux/amd64 -v "$repo:/src:ro" -v "$ci:/ci:ro")
 
 if [[ $mode == personal ]]; then
+    # Optional Homebrew download cache (CI sets HOMEBREW_CACHE_HOST). Never used for corporate:
+    # that job exists to prove every download crosses the TLS-intercepting proxy.
+    if [[ -n "${HOMEBREW_CACHE_HOST:-}" ]]; then
+        mkdir -p "$HOMEBREW_CACHE_HOST"
+        chmod a+rwx "$HOMEBREW_CACHE_HOST"
+        # Mounted outside $HOME: Docker creates missing parents of a mount target as root, and a
+        # root-owned ~/.cache would break puppeteer, uv, and pip.
+        common+=(-v "$HOMEBREW_CACHE_HOST:/homebrew-cache" -e HOMEBREW_CACHE=/homebrew-cache)
+    fi
     exec docker run "${common[@]}" "$image" /ci/in-container.sh personal
 fi
 

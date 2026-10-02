@@ -1,0 +1,21 @@
+name: docs
+
+# Always runs: it takes about 30 s, and renaming a script can break docs that mention it.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - run: .github/ci/docs.sh
