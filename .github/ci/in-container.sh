@@ -44,6 +44,8 @@ check "#2 .zshenv has exactly one cargo env line" test "$(grep -c '.cargo/env' "
 for tool in gh rg fd lazygit uv node mmdc; do
     check "tool resolves in interactive zsh: $tool" zsh -i -c "command -v $tool >/dev/null" </dev/null
 done
+check "#8 chrome-headless-shell downloaded by after_16" \
+    bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
 check "#4 no ~/.zshrc.pre-oh-my-zsh" test ! -e "$HOME/.zshrc.pre-oh-my-zsh"
 check "#4 ~/.zshrc matches the managed template" cmp -s <(chezmoi cat "$HOME/.zshrc") "$HOME/.zshrc"
 check "chezmoi status is clean after bootstrap" test -z "$(chezmoi status)"
