@@ -8,6 +8,8 @@ export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 
 export RUNZSH=no
 export CHSH=no
+# chezmoi writes ~/.zshrc before after_ scripts run; without this the installer replaces it.
+export KEEP_ZSHRC=yes
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
