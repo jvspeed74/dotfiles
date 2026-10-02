@@ -6,12 +6,14 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 
 | Source file | Where it lands |
 |---|---|
-| `dot_zshenv.tmpl` | `~/.zshenv` (corporate proxy, cargo env) |
+| `dot_zshenv.tmpl` | `~/.zshenv` (Homebrew on Linux, corporate proxy and CAs, cargo env, `EDITOR`, `DOTNET_ROOT`, `psql` on PATH) |
 | `dot_zshrc.tmpl` | `~/.zshrc` |
 | `dot_gitconfig.tmpl` | `~/.gitconfig` |
 | `dot_npmrc.tmpl` | `~/.npmrc` |
 | `dot_cargo/config.toml.tmpl` | `~/.cargo/config.toml` |
-| `dot_config/nvim/` | `~/.config/nvim/` (LazyVim) |
+| `dot_config/nvim/create_lazyvim.json` | `~/.config/nvim/lazyvim.json` — LazyVim Extras seed, written only if missing |
+| `dot_config/nvim/lua/plugins/sql.lua` | `~/.config/nvim/lua/plugins/sql.lua` — SQLFluff follows each project's `.sqlfluff` dialect |
+| `dot_sqlfluff` | `~/.sqlfluff` — default SQL dialect (`ansi`) |
 | `dot_config/lazygit/` | `~/.config/lazygit/` |
 | `dot_local/bin/` | `~/.local/bin/` (custom scripts, in PATH) |
 
@@ -22,7 +24,7 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 | Tool | Script |
 |---|---|
 | Homebrew (Mac: `/opt/homebrew`; Linux: `/home/linuxbrew/.linuxbrew`, plus its apt prerequisites) | `run_once_after_05-install-homebrew.sh.tmpl` |
-| build-essential, unzip, golang-go, headless-Chrome runtime libs, zsh + `chsh` to it (Linux only) | `run_once_after_10-install-apt-packages.sh` |
+| build-essential, unzip, golang-go, headless-Chrome runtime libs, python3-venv (Mason's Python tools), zsh + `chsh` to it (Linux only) | `run_once_after_10-install-apt-packages.sh` |
 | Rust (rustup/cargo) | `run_once_after_11-install-rustup.sh.tmpl` |
 | Node.js LTS (nvm) | `run_once_after_12-install-nvm-node.sh.tmpl` |
 | uv | `run_once_after_13-install-uv.sh.tmpl` |
@@ -31,6 +33,8 @@ Personal environment config managed with [chezmoi](https://chezmoi.io). Works on
 | mermaid-cli + headless Chrome | `run_once_after_16-install-mermaid-cli.sh.tmpl` |
 | gh (brew) | `run_once_after_17-install-gh.sh.tmpl` |
 | ripgrep, fd (brew) | `run_once_after_18-install-ripgrep-fd.sh.tmpl` |
+| Neovim, tree-sitter-cli, fzf (brew), JetBrainsMono Nerd Font (Mac cask), LazyVim starter + plugins | `run_once_after_19-install-neovim-lazyvim.sh.tmpl` |
+| .NET SDK, psql (libpq), Snowflake CLI `snow` (brew) | `run_once_after_20-install-dev-clients.sh.tmpl` |
 
 Each runs once (chezmoi tracks a content hash) and self-checks that the tool actually works
 before exiting successfully.
@@ -104,6 +108,33 @@ uv gets `UV_SYSTEM_CERTS=1`. Homebrew downloads through the same proxy, so it mu
 `github.com` (installer, taps) and `ghcr.io` (bottles). `/etc/environment` is deliberately not used: WSL starts shells without a PAM
 session, so `pam_env` never loads it
 ([microsoft/WSL#9213](https://github.com/microsoft/WSL/issues/9213)).
+
+## Neovim (LazyVim)
+
+`after_19` installs Neovim and bootstraps the [LazyVim starter](https://github.com/LazyVim/starter)
+into `~/.config/nvim`, then pre-installs plugins (`nvim --headless "+Lazy! sync" +qa`). Language
+servers, formatters, and treesitter parsers install on the first interactive launch.
+
+- **Existing config is never touched.** If `~/.config/nvim` already contains files other than the
+  two chezmoi manages, the bootstrap prints a warning and skips. To bootstrap later, move your
+  config aside and run just that script (it is `run_once_`, so `chezmoi apply` will not repeat it):
+  `chezmoi execute-template < "$(chezmoi source-path)/run_once_after_19-install-neovim-lazyvim.sh.tmpl" | bash`
+- **Extras** come from `lazyvim.json`: rust, python, sql, json, yaml, toml, markdown, docker,
+  dotnet, git, chezmoi, dot. The repo seeds it once; afterwards change Extras with `:LazyExtras`.
+- **SQL dialects:** `~/.sqlfluff` sets `ansi`. Put a `.sqlfluff` in a project to switch it, e.g.
+  `[sqlfluff]` / `dialect = postgres` (or `snowflake`). Postgres connections work in dadbod-ui via
+  `psql`. Snowflake is via the `snow` CLI only — vim-dadbod's Snowflake adapter needs the legacy
+  `snowsql`, which is not installed.
+- **Nerd Font: JetBrainsMono Nerd Font.** On Mac it is installed automatically; select it in your
+  terminal's font settings. On Windows (WSL), download `JetBrainsMono.zip` from the official
+  [nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts/releases), right-click the `.ttf`
+  files → **Install** (current user, no admin), then choose **JetBrainsMono Nerd Font** in Windows
+  Terminal → Ubuntu profile → Appearance → Font face. Avoid the winget package
+  `DEVCOM.JetBrainsMonoNerdFont`: it is an unofficial repackaging that requires admin.
+- **Corporate:** plugin clones, Mason downloads, and Homebrew all go through the proxy. Mason's
+  Python tools use Ubuntu's pip, which trusts the system CA store (corporate CA included after
+  `before_00`). .NET CLI telemetry is turned off (`DOTNET_CLI_TELEMETRY_OPTOUT=1`), matching
+  Homebrew analytics.
 
 ## Quick reference
 

@@ -11,6 +11,8 @@ export NODE_EXTRA_CA_CERTS={{ .corporate_ca_cert_source_path | quote }}
 export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/corporate-root-ca.crt
 {{- end }}
 export UV_SYSTEM_CERTS=1
+# .NET CLI telemetry is on by default; off on corporate machines, like Homebrew analytics.
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
 {{- end }}
 
 # rustup is installed with --no-modify-path; this file owns the cargo env line.
@@ -21,3 +23,10 @@ export UV_SYSTEM_CERTS=1
 # find brew tools too; .zshrc's PATH export still puts ~/.local/bin ahead of them.
 [[ -x {{ template "brew-prefix" . }}/bin/brew ]] && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 {{- end }}
+
+# Editor and dev tools. Absolute Homebrew paths, so these also work on macOS, where .zshenv runs
+# before .zshrc puts Homebrew on PATH.
+[[ -x {{ template "brew-prefix" . }}/bin/nvim ]] && export EDITOR={{ template "brew-prefix" . }}/bin/nvim VISUAL={{ template "brew-prefix" . }}/bin/nvim
+[[ -d {{ template "brew-prefix" . }}/opt/dotnet/libexec ]] && export DOTNET_ROOT={{ template "brew-prefix" . }}/opt/dotnet/libexec
+# libpq is keg-only (not linked into bin), so add its bin for psql.
+[[ -d {{ template "brew-prefix" . }}/opt/libpq/bin && ":$PATH:" != *":{{ template "brew-prefix" . }}/opt/libpq/bin:"* ]] && export PATH="{{ template "brew-prefix" . }}/opt/libpq/bin:$PATH"

@@ -124,6 +124,54 @@ if [[ $os == Linux ]]; then
         bash -c "grep -qF 'apt-get install -y build-essential procps curl file git' '$C/run_once_after_05-install-homebrew.sh' && grep -qF 'NONINTERACTIVE=1' '$C/run_once_after_05-install-homebrew.sh'"
 fi
 
+# nvim: Neovim + LazyVim bootstrap (after_19), dev clients (after_20), shell env, managed nvim files.
+A19="$C/run_once_after_19-install-neovim-lazyvim.sh"
+A20="$C/run_once_after_20-install-dev-clients.sh"
+check "nvim: after_19 evals brew shellenv" has "$A19" "$shellenv"
+check "nvim: after_19 installs neovim, tree-sitter-cli, fzf" has "$A19" "brew install neovim tree-sitter-cli fzf"
+if [[ $os == Darwin ]]; then
+    check "nvim: after_19 installs the JetBrainsMono Nerd Font cask (macOS)" has "$A19" "brew install --cask font-jetbrains-mono-nerd-font"
+    check "nvim: font cask failure is non-fatal (macOS)" has "$A19" "|| echo \"JetBrainsMono Nerd Font cask skipped"
+else
+    check "nvim: after_19 has no font cask on Linux" lacks "$A19" "font-jetbrains-mono-nerd-font"
+fi
+check "nvim: after_20 evals brew shellenv" has "$A20" "$shellenv"
+check "nvim: after_20 installs dotnet, libpq, snowflake-cli" has "$A20" "brew install dotnet libpq snowflake-cli"
+for dir in "$C" "$P"; do
+    p=$(basename "$dir")
+    check "nvim: $p .zshenv sets EDITOR/VISUAL guarded" has "$dir/dot_zshenv" \
+        "[[ -x $brew_prefix/bin/nvim ]] && export EDITOR=$brew_prefix/bin/nvim VISUAL=$brew_prefix/bin/nvim"
+    check "nvim: $p .zshenv sets DOTNET_ROOT guarded" has "$dir/dot_zshenv" \
+        "[[ -d $brew_prefix/opt/dotnet/libexec ]] && export DOTNET_ROOT=$brew_prefix/opt/dotnet/libexec"
+    check "nvim: $p .zshenv adds keg-only libpq to PATH" has "$dir/dot_zshenv" "export PATH=\"$brew_prefix/opt/libpq/bin:\$PATH\""
+    check "nvim: $p .zshrc no longer has the commented EDITOR block" lacks "$dir/dot_zshrc" "EDITOR"
+done
+check "nvim: no PIP_CERT (Ubuntu's pip trusts the system store)" \
+    bash -c "! grep -q PIP_CERT '$C/dot_zshenv' '$P/dot_zshenv'"
+check "nvim: corp .zshenv and after_20 opt out of .NET telemetry" \
+    bash -c "grep -qx 'export DOTNET_CLI_TELEMETRY_OPTOUT=1' '$C/dot_zshenv' && grep -qx 'export DOTNET_CLI_TELEMETRY_OPTOUT=1' '$A20'"
+check "nvim: personal leaves .NET telemetry alone" \
+    bash -c "! grep -q DOTNET_CLI_TELEMETRY_OPTOUT '$P/dot_zshenv' '$P/run_once_after_20-install-dev-clients.sh'"
+check "nvim: after_10 installs python3-venv and checks ensurepip" \
+    bash -c "grep -qE '^ +python3-venv ' '$C/run_once_after_10-install-apt-packages.sh' && grep -qF 'import ensurepip' '$C/run_once_after_10-install-apt-packages.sh'"
+check "nvim: after_19 resumes an interrupted starter copy (marker)" has "$A19" '.lazyvim-bootstrap-incomplete'
+# after_19 treats any file under ~/.config/nvim outside managed_re as a user config and skips. Every
+# file chezmoi manages there must match it, or fresh machines would silently skip the bootstrap.
+managed_re=$(sed -n "s/^managed_re='\(.*\)'\$/\1/p" "$A19")
+uncovered=$(cd "$repo/dot_config/nvim" && find . -type f | sed 's#^\./##' | while IFS= read -r src; do
+    printf '%s\n' "$src" | tr '/' '\n' \
+        | sed -E 's/^((create|modify|private|readonly|executable|empty|exact|encrypted)_)+//; s/^dot_/./; s/\.tmpl$//' \
+        | paste -sd/ -
+done | grep -vE "$managed_re" || true)
+check "nvim: managed_re covers every file under dot_config/nvim" test -n "$managed_re" -a -z "$uncovered"
+if [[ -n "$uncovered" ]]; then echo "      uncovered: $uncovered"; fi
+check "nvim: lazyvim.json seeds 12 extras" count_is "$repo/dot_config/nvim/create_lazyvim.json" '"lazyvim.plugins.extras.' 12
+check "nvim: ~/.sqlfluff defaults to ansi" bash -c "grep -qx 'dialect = ansi' '$repo/dot_sqlfluff'"
+# Lua comments start with "--", so drop comment lines before checking for CLI flags.
+sql_code=$(grep -vE '^[[:space:]]*--' "$repo/dot_config/nvim/lua/plugins/sql.lua")
+check "nvim: sql.lua passes --stdin-filename and no --dialect" \
+    bash -c 'grep -qF -- "--stdin-filename" <<<"$1" && ! grep -qF -- "--dialect" <<<"$1"' _ "$sql_code"
+
 # #3 live check (macOS runner): the rendered helper returns credentials with a GUI-style PATH.
 if [[ $os == Darwin && -n "${GH_TOKEN:-}" ]]; then
     check "#3 helper returns credentials with PATH=/usr/bin:/bin:/usr/sbin:/sbin" bash -c "

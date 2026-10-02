@@ -14,6 +14,7 @@ sudo apt-get install -y \
     libnspr4 \
     libnss3 \
     libasound2t64 \
+    python3-venv \
     zsh
 
 # rg, fd, and gh now come from Homebrew (after_17, after_18). Remove the fd -> fdfind symlink an
@@ -32,4 +33,5 @@ command -v go >/dev/null || { echo "golang-go install failed" >&2; exit 1; }
 command -v unzip >/dev/null || { echo "unzip install failed" >&2; exit 1; }
 gcc --version >/dev/null || { echo "build-essential (gcc) install failed" >&2; exit 1; }
 command -v zsh >/dev/null || { echo "zsh install failed" >&2; exit 1; }
+python3 -c 'import ensurepip' 2>/dev/null || { echo "python3-venv install failed (no ensurepip)" >&2; exit 1; }
 [[ "$(getent passwd "$USER" | cut -d: -f7)" == "$zsh_path" ]] || { echo "chsh to zsh failed" >&2; exit 1; }
