@@ -85,6 +85,15 @@ check "node: interactive zsh does not load nvm at startup" \
     clean_zsh_i '! typeset -f nvm_ls_current >/dev/null'
 check "node: nvm loads on first use and reports the PATH node" \
     test "$(clean_zsh_i 'nvm current' | tail -n1)" = "$(clean_zsh 'node --version')"
+# Real nvm: install an older major beside the LTS. New shells keep the newest; a child zsh started
+# after `nvm use <older>` keeps the older one (.zshenv must not re-prepend the newest).
+node_new=$(clean_zsh 'node --version')
+node_major=${node_new#v}; node_old=$(( ${node_major%%.*} - 2 ))
+check "node: nvm installs an older Node ($node_old) beside $node_new" clean_zsh_i "nvm install $node_old >/dev/null 2>&1"
+check "node: a fresh zsh still uses the newest Node ($node_new)" test "$(clean_zsh 'node --version')" = "$node_new"
+node_child=$(clean_zsh_i "nvm use $node_old >/dev/null && zsh -c 'node --version'" | tail -n1)
+check "node: child zsh -c keeps the parent's \`nvm use $node_old\` ($node_child)" \
+    bash -c '[[ $1 == "v$2."* ]]' _ "$node_child" "$node_old"
 brew_bin=/home/linuxbrew/.linuxbrew/bin
 for tool in gh rg fd lazygit; do
     check "#10 $tool resolves to Homebrew ($brew_bin)" \
