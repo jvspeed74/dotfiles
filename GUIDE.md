@@ -328,7 +328,7 @@ another's.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `chezmoi: command not found` right after bootstrap | The installer put `chezmoi` in `~/.local/bin`, which the shell you ran it from may not have on PATH; every zsh gets it from `~/.zshenv` | Open a new terminal, or run `~/.local/bin/chezmoi`. Machines bootstrapped before the `-b` flag have it in `./bin` of the directory the one-liner ran in; `~/bin` is also on PATH. |
+| `chezmoi: command not found` right after bootstrap | The installer put `chezmoi` in `~/.local/bin`, which the shell you ran it from may not have on PATH; every zsh gets it from `~/.zshenv` | Open a new terminal, or run `~/.local/bin/chezmoi`. Machines bootstrapped before the `-b` flag have it in `./bin` of the directory the one-liner ran in: from `~` that is `~/bin`, which is on PATH; otherwise move it to `~/.local/bin`. |
 | `chezmoi diff` shows changes you did not make in source | A target in `~` was edited directly | Keep the edit: `chezmoi re-add <file>`. Discard it: `chezmoi apply`. |
 | Changes pushed from another machine are missing | `chezmoi apply` reads only the local source | `chezmoi update` |
 | git asks for a GitHub username or password | Not logged in to `gh` | `gh auth login` |

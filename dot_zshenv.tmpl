@@ -31,9 +31,10 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 # libpq is keg-only (not linked into bin), so add its bin for psql.
 [[ -d {{ template "brew-prefix" . }}/opt/libpq/bin && ":$PATH:" != *":{{ template "brew-prefix" . }}/opt/libpq/bin:"* ]] && export PATH="{{ template "brew-prefix" . }}/opt/libpq/bin:$PATH"
 
-# User bins first in every zsh, so `wsl.exe chezmoi …` and `zsh -c uv …` resolve. Last in this file
-# so they precede Homebrew and libpq. .zshrc prepends the same dirs again for interactive shells
-# (macOS path_helper reorders PATH in between). -U keeps the first copy of each entry; it needs
-# both names, since a plain `typeset -U path` does not dedup assignments to the scalar PATH.
+# User bins ahead of Homebrew, libpq, and system dirs in every zsh, so `wsl.exe chezmoi …` and
+# `zsh -c uv …` resolve. Last in this file so they precede Homebrew and libpq. .zshrc prepends the
+# same dirs again for interactive shells (macOS path_helper reorders PATH in between). -U keeps the
+# first copy of each entry; it needs both names, since a plain `typeset -U path` does not dedup
+# assignments to the scalar PATH.
 typeset -U path PATH
 export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
