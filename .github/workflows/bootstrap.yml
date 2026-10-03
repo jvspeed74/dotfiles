@@ -7,6 +7,8 @@ on:
       - 'dot_*/**'
       - 'run_*'
       - '.chezmoi*'
+      # Files inside .chezmoidata/ (Linux tool pins) and .chezmoitemplates/: `*` does not cross `/`.
+      - '.chezmoi*/**'
       - '.github/**'
       # Docs-only changes are checked by docs.yml; they cannot change what a bootstrap applies.
       - '!.github/ci/docs.sh'

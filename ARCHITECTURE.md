@@ -449,7 +449,7 @@ proxy or the corporate CA fails the job. Like the real corporate proxy, mitmprox
 
 | Workflow | Runs on |
 |---|---|
-| `bootstrap.yml` | Pull requests touching `dot_*`, `run_*`, `.chezmoi*`, or `.github/**` (except the docs checker files); manual runs |
+| `bootstrap.yml` | Pull requests touching `dot_*`, `run_*`, `.chezmoi*` and files inside `.chezmoi*/` (tool pins, partials), or `.github/**` (except the docs checker files); manual runs |
 | `docs.yml` | Every pull request; manual runs |
 
 | Job | Proves |
