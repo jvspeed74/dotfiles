@@ -2,7 +2,8 @@
 # Bootstraps this repo in a fresh Ubuntu container and runs in-container.sh's checks.
 # Usage: [UBUNTU_VERSION=26.04] run-bootstrap.sh personal|corporate   (default 24.04)
 #   corporate: the test container sits on an --internal network whose only way out is a
-#   TLS-intercepting mitmproxy, so any tool ignoring the proxy or the corporate CA fails.
+#   TLS-intercepting mitmproxy, so any tool ignoring the proxy or the corporate CA fails. Like the
+#   real corporate proxy, it answers 403 for raw.githubusercontent.com and ghcr.io.
 set -euo pipefail
 
 mode=${1:?usage: run-bootstrap.sh personal|corporate}
@@ -15,15 +16,6 @@ docker build --platform linux/amd64 --build-arg "UBUNTU_VERSION=$ubuntu_version"
 common=(--rm --platform linux/amd64 -v "$repo:/src:ro" -v "$ci:/ci:ro")
 
 if [[ $mode == personal ]]; then
-    # Optional Homebrew download cache (CI sets HOMEBREW_CACHE_HOST). Never used for corporate:
-    # that job exists to prove every download crosses the TLS-intercepting proxy.
-    if [[ -n "${HOMEBREW_CACHE_HOST:-}" ]]; then
-        mkdir -p "$HOMEBREW_CACHE_HOST"
-        chmod a+rwx "$HOMEBREW_CACHE_HOST"
-        # Mounted outside $HOME: Docker creates missing parents of a mount target as root, and a
-        # root-owned ~/.cache would break puppeteer, uv, and pip.
-        common+=(-v "$HOMEBREW_CACHE_HOST:/homebrew-cache" -e HOMEBREW_CACHE=/homebrew-cache)
-    fi
     exec docker run "${common[@]}" "$image" /ci/in-container.sh personal
 fi
 
@@ -39,8 +31,10 @@ trap cleanup EXIT
 
 docker network create --internal "$net" >/dev/null
 # stream_large_bodies: pass toolchain downloads through instead of buffering them in memory.
+# block_list: the corporate proxy blocks these hosts; nothing in the bootstrap may need them.
 docker run -d --name "$proxy" mitmproxy/mitmproxy \
-    mitmdump --listen-port 8080 --set stream_large_bodies=1m >/dev/null
+    mitmdump --listen-port 8080 --set stream_large_bodies=1m \
+    --set block_list=':~d raw.githubusercontent.com:403' --set block_list=':~d ghcr.io:403' >/dev/null
 docker network connect --alias proxy "$net" "$proxy"
 
 ca=/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem

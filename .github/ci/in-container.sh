@@ -188,6 +188,14 @@ if [[ $mode == corporate ]]; then
         check "#2/#5 $var set in non-interactive zsh" grep -q "^$var=" <<<"$env_dump"
     done
     check "apt proxy config written" test -f /etc/apt/apt.conf.d/95corporate-proxy
+    # The corporate proxy blocks raw.githubusercontent.com and ghcr.io (as the real one does). Proves
+    # the block is active; every install above succeeding proves nothing depends on those hosts.
+    for blocked in https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh https://ghcr.io/v2/; do
+        check "restricted: proxy blocks $blocked (403)" \
+            test "$(zsh -c "curl -s -o /dev/null -w '%{http_code}' '$blocked'")" = 403
+    done
+    check "restricted: control: github.com release downloads pass the proxy" \
+        test "$(zsh -c "curl -sL -o /dev/null -w '%{http_code}' https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_checksums.txt")" = 200
     check "CA installed by before_00" test -f /usr/local/share/ca-certificates/corporate-root-ca.crt
 
     check "#5 npm reaches the registry through the TLS proxy" zsh -i -c 'npm ping >/dev/null 2>&1' </dev/null
