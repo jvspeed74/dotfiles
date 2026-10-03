@@ -94,28 +94,41 @@ fi
 check "#5 corp .zshenv: $node_ca" has "$C/dot_zshenv" "$node_ca"
 check "#5 corp after_16: $node_ca" has "$C/run_once_after_16-install-mermaid-cli.sh" "$node_ca"
 
-# #6 / #10: guarded brew shellenv with the per-OS prefix: in .zshrc on macOS (before the PATH export),
-# in .zshenv on Linux (so non-interactive shells get it), and in every brew script.
+# #6 / #10: guarded brew shellenv with the per-OS prefix: in .zshrc on macOS (before the PATH lines),
+# in .zshenv on Linux (so non-interactive shells get it), and in every brew script. The rc files skip
+# shellenv when Homebrew is already on PATH (nested shells), except macOS login shells (path_helper).
 shellenv="eval \"\$($brew_prefix/bin/brew shellenv)\""
-guarded="[[ -x $brew_prefix/bin/brew ]] && $shellenv"
+on_path="(( ! \${path[(Ie)$brew_prefix/bin]} ))"
+if [[ $os == Darwin ]]; then
+    guarded="[[ -x $brew_prefix/bin/brew ]] && { [[ -o login ]] || $on_path } && $shellenv"
+else
+    guarded="[[ -x $brew_prefix/bin/brew ]] && $on_path && $shellenv"
+fi
 if [[ $os == Darwin ]]; then rc_with=dot_zshrc rc_without=dot_zshenv; else rc_with=dot_zshenv rc_without=dot_zshrc; fi
 for dir in "$C" "$P"; do
     check "#6/#10 $(basename "$dir") $rc_with has guarded brew shellenv ($brew_prefix)" has "$dir/$rc_with" "$guarded"
     check "#6/#10 $(basename "$dir") $rc_without has no brew shellenv" lacks "$dir/$rc_without" "brew shellenv"
 done
 if [[ $os == Darwin ]]; then
-    check "#6/#10 brew shellenv precedes the PATH export" \
-        bash -c "[[ \$(grep -nF 'brew shellenv' '$C/dot_zshrc' | cut -d: -f1) -lt \$(grep -n '^export PATH=' '$C/dot_zshrc' | cut -d: -f1) ]]"
+    check "#6/#10 brew shellenv precedes the login-shell PATH prepend" \
+        bash -c "[[ \$(grep -nF 'brew shellenv' '$C/dot_zshrc' | cut -d: -f1) -lt \$(grep -nF '[[ -o login ]] && path=(' '$C/dot_zshrc' | cut -d: -f1) ]]"
 else
     check "#10 Linux .zshrc starts at the PATH comment" first_line "$C/dot_zshrc" "# If you come from bash you might have to change your \$PATH."
 fi
 
 # ~/.local/bin on PATH in every zsh (.zshenv), deduplicated, and last so it precedes Homebrew/libpq.
-user_bins='export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"'
+# Every rc-file PATH addition goes through the guarded helper, so nested shells keep their parent's
+# order; only the macOS login-shell line assigns path directly (after path_helper).
 for dir in "$C" "$P"; do
     p=$(basename "$dir")
     check "path: $p .zshenv dedups PATH (typeset -U path PATH)" bash -c "grep -qx 'typeset -U path PATH' '$dir/dot_zshenv'"
-    check "path: $p .zshenv ends with the user-bin PATH export" bash -c '[[ "$(tail -n1 "$1")" == "$2" ]]' _ "$dir/dot_zshenv" "$user_bins"
+    check "path: $p .zshenv defines _dotfiles_path_prepend" grep -q '^_dotfiles_path_prepend() {' "$dir/dot_zshenv"
+    check "path: $p .zshenv ends with _dotfiles_path_prepend ~/.local/bin" \
+        bash -c '[[ "$(tail -n1 "$1")" == "$2" ]]' _ "$dir/dot_zshenv" '_dotfiles_path_prepend "$HOME/.local/bin"'
+    check "path: $p .zshenv and .zshrc never export PATH directly" \
+        bash -c '! grep -nE "^[^#]*export PATH=" "$1" "$2"' _ "$dir/dot_zshenv" "$dir/dot_zshrc"
+    check "path: $p .zshrc prepends via _dotfiles_path_prepend" \
+        grep -qx '_dotfiles_path_prepend "$HOME/.local/bin" /usr/local/bin' "$dir/dot_zshrc"
 done
 for script in run_once_after_15-install-lazygit.sh run_once_after_17-install-gh.sh run_once_after_18-install-ripgrep-fd.sh; do
     check "#10 $script evals brew shellenv ($brew_prefix)" has "$C/$script" "$shellenv"
@@ -154,7 +167,8 @@ for dir in "$C" "$P"; do
         "[[ -x $brew_prefix/bin/nvim ]] && export EDITOR=$brew_prefix/bin/nvim VISUAL=$brew_prefix/bin/nvim"
     check "nvim: $p .zshenv sets DOTNET_ROOT guarded" has "$dir/dot_zshenv" \
         "[[ -d $brew_prefix/opt/dotnet/libexec ]] && export DOTNET_ROOT=$brew_prefix/opt/dotnet/libexec"
-    check "nvim: $p .zshenv adds keg-only libpq to PATH" has "$dir/dot_zshenv" "export PATH=\"$brew_prefix/opt/libpq/bin:\$PATH\""
+    check "nvim: $p .zshenv adds keg-only libpq to PATH" has "$dir/dot_zshenv" \
+        "[[ -d $brew_prefix/opt/libpq/bin ]] && _dotfiles_path_prepend $brew_prefix/opt/libpq/bin"
     check "nvim: $p .zshrc no longer has the commented EDITOR block" lacks "$dir/dot_zshrc" "EDITOR"
 done
 check "nvim: no PIP_CERT (Ubuntu's pip trusts the system store)" \

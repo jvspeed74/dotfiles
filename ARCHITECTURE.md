@@ -242,8 +242,8 @@ mermaid-cli depend on an earlier script.
 
 | File | Contents | Read by |
 |---|---|---|
-| `dot_zshenv.tmpl` → `~/.zshenv` | Corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, then `~/.local/bin` ahead of Homebrew and system dirs (`typeset -U path PATH`) | Every zsh |
-| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` prepended again (after macOS `path_helper`), nvm, Oh My Zsh | Interactive zsh only |
+| `dot_zshenv.tmpl` → `~/.zshenv` | `_dotfiles_path_prepend` and `typeset -U path PATH`, corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, then `~/.local/bin` ahead of Homebrew and system dirs | Every zsh |
+| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` and `/usr/local/bin` if missing (unconditionally in macOS login shells, after `path_helper`), nvm, Oh My Zsh | Interactive zsh only |
 
 **Flow**
 
@@ -266,16 +266,21 @@ interactive shells.
   `path_helper` would reorder anything `.zshenv` puts on PATH for login shells.
 - `.zshenv` refers to Homebrew tools by absolute path behind `[[ -x … ]]` guards, so it works
   before Homebrew is on PATH and when a tool is not installed.
-- `~/.local/bin` precedes Homebrew and the system directories in every zsh: `.zshenv` adds it last,
-  and `.zshrc` re-adds it after macOS `path_helper`. `typeset -U path PATH` keeps each entry once.
-  In interactive shells nvm's node bin precedes it. It is the only user bin directory; `~/bin` is
-  not on PATH.
+- `~/.local/bin` precedes Homebrew and the system directories in every fresh zsh: `.zshenv` adds
+  it last, and `.zshrc` re-adds it after macOS `path_helper`. `typeset -U path PATH` keeps each
+  entry once. In interactive shells nvm's node bin precedes it. It is the only user bin directory;
+  `~/bin` is not on PATH.
+- PATH additions in `.zshenv` and `.zshrc` go through `_dotfiles_path_prepend`, which skips
+  directories already on PATH, and Homebrew's `shellenv` is skipped when Homebrew is already on
+  PATH. A nested zsh therefore keeps its parent's order: an activated venv stays first. The only
+  exception is macOS login shells, which prepend unconditionally after `path_helper`.
 
 **Failure modes**
 
 | Symptom | Cause | Where handled |
 |---|---|---|
 | A tool works in a terminal but not in `wsl.exe <cmd>` | Its setup is in `.zshrc` | Move it to `.zshenv` ([CONTRIBUTING rules](CONTRIBUTING.md#rules-that-keep-machines-working)) |
+| A nested shell (`:!cmd` in Neovim, `zsh` inside an activated venv) finds `~/.local/bin` or Homebrew tools before the venv's | An rc file prepended unconditionally | `_dotfiles_path_prepend`; CI checks both nested cases |
 | `/etc/environment` settings are ignored | WSL starts shells without a PAM session ([microsoft/WSL#9213](https://github.com/microsoft/WSL/issues/9213)) | Not used; `.zshenv` instead |
 
 ## 6. Corporate network

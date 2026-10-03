@@ -53,14 +53,22 @@ check "#2 .zshenv has exactly one cargo env line" test "$(grep -c '.cargo/env' "
 clean_zsh() { env -i HOME="$HOME" USER="$USER" zsh -c "$1"; }
 check "path: chezmoi, uv, uvx resolve in non-interactive zsh from a clean env" \
     clean_zsh 'command -v chezmoi uv uvx >/dev/null'
-user_bins="$HOME/.local/bin /usr/local/bin"
-check "path: non-interactive zsh PATH starts with ~/.local/bin, /usr/local/bin" \
-    test "$(clean_zsh 'print -l $path[1,2]' 2>/dev/null | tr '\n' ' ')" = "$user_bins "
+check "path: non-interactive zsh PATH starts with ~/.local/bin" \
+    test "$(clean_zsh 'print -r -- $path[1]' 2>/dev/null)" = "$HOME/.local/bin"
 # Interactive: nvm prepends its node bin when .zshrc loads it, so check order, not position.
+clean_zsh_i() { env -i HOME="$HOME" USER="$USER" ${2:+PATH="$2"} zsh -i -c "$1" </dev/null 2>/dev/null; }
 check "path: interactive zsh PATH has ~/.local/bin before Homebrew" \
-    zsh -i -c '(( path[(i)$HOME/.local/bin] < path[(i)/home/linuxbrew/.linuxbrew/bin] && path[(i)/home/linuxbrew/.linuxbrew/bin] <= $#path ))' </dev/null
+    clean_zsh_i '(( path[(i)$HOME/.local/bin] < path[(i)/home/linuxbrew/.linuxbrew/bin] && path[(i)/home/linuxbrew/.linuxbrew/bin] <= $#path ))'
 check "path: interactive zsh PATH has no duplicate entries" \
-    test -z "$(zsh -i -c 'print -l $path' </dev/null 2>/dev/null | sort | uniq -d)"
+    test -z "$(clean_zsh_i 'print -l $path' | sort | uniq -d)"
+# A nested zsh keeps its parent's order: an activated venv first in the parent stays first. The
+# parent is a fresh interactive shell (a terminal tab) with a venv's bin prepended.
+venv=/tmp/venv-probe/bin
+parent="$venv:$(clean_zsh_i 'print -rn -- $PATH')"
+check "path: nested non-interactive zsh keeps the parent's first entry (venv)" \
+    test "$(env -i HOME="$HOME" USER="$USER" PATH="$parent" zsh -c 'print -r -- $path[1]')" = "$venv"
+check "path: nested interactive zsh keeps the parent's first entry (venv)" \
+    test "$(clean_zsh_i 'print -r -- $path[1]' "$parent" | tail -n1)" = "$venv"
 for tool in brew gh rg fd lazygit uv node mmdc; do
     check "tool resolves in interactive zsh: $tool" zsh -i -c "command -v $tool >/dev/null" </dev/null
 done
