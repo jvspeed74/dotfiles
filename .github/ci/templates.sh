@@ -71,6 +71,27 @@ check "#2 .zshenv cargo line, both profiles" \
 check "#2 corp .zshrc no longer exports the proxy" lacks "$C/dot_zshrc" "HTTP_PROXY"
 check "#2 after_11 passes --no-modify-path" has "$C/run_once_after_11-install-rustup.sh" "--no-modify-path"
 
+# apt proxy: hosts in apt's sources that resolve to a private address (an internal mirror) go
+# DIRECT; public hosts stay on the proxy. Private hosts are IP literals so no DNS is involved.
+if [[ $os == Linux ]]; then
+    apt_dir="$work/apt"
+    mkdir -p "$apt_dir/sources.list.d"
+    printf '%s\n' 'deb http://archive.ubuntu.com/ubuntu noble main' '# deb http://10.9.9.9/commented noble main' \
+        > "$apt_dir/sources.list"
+    printf '%s\n' 'Types: deb' 'URIs: https://10.20.30.40:8443/debian/' 'Suites: noble' \
+        > "$apt_dir/sources.list.d/internal.sources"
+    printf '%s\n' 'deb [arch=amd64 signed-by=/k.gpg] https://user:pw@192.168.5.6/repo stable main' \
+        'deb https://download.docker.com/linux/ubuntu noble stable' \
+        'deb http://no-such-host.invalid/repo stable main' > "$apt_dir/sources.list.d/other.list"
+    # The last host apt_direct_hosts checks (sorted) is not private, so a loop that ends on a non-match
+    # must still succeed under set -e/pipefail.
+    direct=$(APT_PROXY_FUNCTIONS_ONLY=1 bash -c \
+        'source "$1" && apt_direct_hosts "$2"' _ "$C/run_onchange_before_01-configure-apt-proxy.sh" "$apt_dir" | paste -sd, -)
+    check "apt proxy: only private-address source hosts go DIRECT ($direct)" test "$direct" = "10.20.30.40,192.168.5.6"
+    check "apt proxy: DIRECT entries are written per host" \
+        has "$C/run_onchange_before_01-configure-apt-proxy.sh" 'echo "Acquire::https::Proxy::${host} \"DIRECT\";"'
+fi
+
 # #3: gh credential helper, per-OS absolute path.
 check "#3 .gitconfig starts with [credential" first_line "$C/dot_gitconfig" '[credential "https://github.com"]'
 # #10 moved gh to Homebrew on Linux too, so the helper path follows the Homebrew prefix.
