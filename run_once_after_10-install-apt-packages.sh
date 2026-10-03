@@ -8,7 +8,9 @@ fi
 # `sudo -v` prompts unless credentials are cached or every matching sudoers rule is NOPASSWD.
 sudo -n true 2>/dev/null || sudo -v
 sudo apt-get update
-sudo apt-get install -y \
+# Non-interactive, keeping existing config files: a dependency upgrade must not stop at a dpkg
+# conffile prompt.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold \
     build-essential \
     unzip \
     golang-go \

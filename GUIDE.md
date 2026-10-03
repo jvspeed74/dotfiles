@@ -88,7 +88,16 @@ it downloads chezmoi and clones the repo before any repo script runs.
    export http_proxy=http://proxy.corp.example:8080 https_proxy=http://proxy.corp.example:8080 HTTP_PROXY=http://proxy.corp.example:8080 HTTPS_PROXY=http://proxy.corp.example:8080
    ```
 
-6. Run the one-liner from [personal machine](#personal-machine) using the HTTPS + token method.
+6. If apt uses an internal mirror (`grep -rh -E '^(deb|URIs)' /etc/apt/sources.list*` shows a
+   company host), run `getent hosts <that host>`. A private address (`10.x`, `172.16–31.x`,
+   `192.168.x`) means the bootstrap sends apt to it directly instead of through the proxy. Any
+   other answer means apt goes through the proxy, which may not reach internal hosts.
+7. Check that the proxy allows what the bootstrap downloads from: git over https and release
+   downloads from `github.com`, `nodejs.org`, `registry.npmjs.org`, `pypi.org`, `sh.rustup.rs` and
+   `static.rust-lang.org`, `astral.sh`, `get.chezmoi.io`, `storage.googleapis.com`. It does not
+   need `raw.githubusercontent.com` or `ghcr.io`, which some corporate proxies block
+   ([ARCHITECTURE layer 6](ARCHITECTURE.md#6-corporate-network)).
+8. Run the one-liner from [personal machine](#personal-machine) using the HTTPS + token method.
    Answer `true` to the corporate question, then give the proxy URL and the CA path from step 4.
 
 **Check:** `env | grep -i proxy` in a new terminal shows four variables.

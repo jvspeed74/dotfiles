@@ -202,6 +202,8 @@ if command -v zsh >/dev/null; then
     check "node: login zsh keeps the newest nvm bin on PATH (after path_helper on macOS)" \
         grep -qxF "$newest" <<<"$(fake_zsh -lc 'print -l $path')"
 fi
+check "#10 after_10 installs non-interactively, keeping conffiles (no dpkg prompt)" \
+    has "$C/run_once_after_10-install-apt-packages.sh" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold \\"
 check "#10 after_10 does not install ripgrep, fd-find, or gh" \
     bash -c "! grep -qE '^ +(ripgrep|fd-find|gh)( |\\\\|\$)' '$C/run_once_after_10-install-apt-packages.sh'"
 check "#10 personal after_05 leaves analytics alone" lacks "$P/run_once_after_05-install-homebrew.sh" "analytics"
