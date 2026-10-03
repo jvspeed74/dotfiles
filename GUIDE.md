@@ -17,7 +17,7 @@ Tasks for the person using a machine set up from this repo. Each task: **When** 
 2. Run:
 
    ```bash
-   bash -c "$(curl -fsLS get.chezmoi.io)" -- init --apply jvspeed74
+   bash -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply jvspeed74
    ```
 
 3. Supply GitHub credentials when git asks ([clone the private repo](#clone-the-private-repo)).
@@ -36,7 +36,7 @@ apply overwrites every managed file without asking.
 1. Clone and answer the prompts, without applying:
 
    ```bash
-   bash -c "$(curl -fsLS get.chezmoi.io)" -- init jvspeed74
+   bash -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init jvspeed74
    ```
 
 2. Back up every existing file chezmoi would write:
@@ -328,7 +328,7 @@ another's.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `chezmoi: command not found` right after bootstrap | The installer put `chezmoi` in `./bin` of the directory you ran it from; `~/bin` is on PATH only in new zsh terminals | Open a new terminal, or run `./bin/chezmoi`; if you ran the one-liner elsewhere, move `bin/chezmoi` to `~/.local/bin`. |
+| `chezmoi: command not found` right after bootstrap | The installer put `chezmoi` in `~/.local/bin`, which the shell you ran it from may not have on PATH; every zsh gets it from `~/.zshenv` | Open a new terminal, or run `~/.local/bin/chezmoi`. Machines bootstrapped before the `-b` flag have it in `./bin` of the directory the one-liner ran in; `~/bin` is also on PATH. |
 | `chezmoi diff` shows changes you did not make in source | A target in `~` was edited directly | Keep the edit: `chezmoi re-add <file>`. Discard it: `chezmoi apply`. |
 | Changes pushed from another machine are missing | `chezmoi apply` reads only the local source | `chezmoi update` |
 | git asks for a GitHub username or password | Not logged in to `gh` | `gh auth login` |

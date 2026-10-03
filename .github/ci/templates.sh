@@ -109,6 +109,14 @@ if [[ $os == Darwin ]]; then
 else
     check "#10 Linux .zshrc starts at the PATH comment" first_line "$C/dot_zshrc" "# If you come from bash you might have to change your \$PATH."
 fi
+
+# User bins on PATH in every zsh (.zshenv), deduplicated, and last so they precede Homebrew/libpq.
+user_bins='export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"'
+for dir in "$C" "$P"; do
+    p=$(basename "$dir")
+    check "path: $p .zshenv dedups PATH (typeset -U path PATH)" bash -c "grep -qx 'typeset -U path PATH' '$dir/dot_zshenv'"
+    check "path: $p .zshenv ends with the user-bin PATH export" bash -c '[[ "$(tail -n1 "$1")" == "$2" ]]' _ "$dir/dot_zshenv" "$user_bins"
+done
 for script in run_once_after_15-install-lazygit.sh run_once_after_17-install-gh.sh run_once_after_18-install-ripgrep-fd.sh; do
     check "#10 $script evals brew shellenv ($brew_prefix)" has "$C/$script" "$shellenv"
 done
