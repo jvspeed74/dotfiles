@@ -272,7 +272,8 @@ interactive shells.
   entry once. It also precedes the nvm Node bin. It is the only user bin directory; `~/bin` is not
   on PATH.
 - Node comes from `.zshenv`: the newest installed nvm version (numeric sort), in every zsh. New
-  shells use it, not nvm's `default` alias. `.zshrc` defines `nvm` as a function that loads nvm on
+  shells use it, not nvm's `default` alias; a shell that already has an nvm Node on PATH keeps it,
+  so children inherit a parent's `nvm use`. `.zshrc` defines `nvm` as a function that loads nvm on
   first call, so shell startup does not pay for it.
 - PATH additions in `.zshenv` and `.zshrc` go through `_dotfiles_path_prepend`, which skips
   directories already on PATH, and Homebrew's `shellenv` is skipped when Homebrew is already on

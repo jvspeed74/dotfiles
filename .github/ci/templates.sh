@@ -159,6 +159,11 @@ if command -v zsh >/dev/null; then
         test "$(fake_zsh -c 'command -v node')" = "$newest/node"
     check "node: older nvm versions are not on PATH" \
         bash -c '! grep -qE "/(v9\.0\.0|v24\.9\.0)/bin$" <<<"$1"' _ "$(fake_zsh -c 'print -l $path')"
+    # After `nvm use v9.0.0` in a parent shell, a child zsh must keep that version, not the newest.
+    used="$fake/.nvm/versions/node/v9.0.0/bin"
+    # Compare nvm entries, not `command -v node`: a host with Homebrew's node linked puts it first.
+    check "node: child zsh keeps the parent's nvm version (nvm use)" \
+        test "$(env -i HOME="$fake" PATH="$used:/usr/bin:/bin" zsh -c 'print -l $path' 2>/dev/null | grep /.nvm/versions/node/)" = "$used"
     # A login shell also runs /etc/zprofile, where macOS's path_helper reorders PATH. The nvm bin must
     # survive it; it may land behind system dirs, which on a CI runner can hold their own node.
     check "node: login zsh keeps the newest nvm bin on PATH (after path_helper on macOS)" \
