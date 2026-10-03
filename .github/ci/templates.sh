@@ -110,8 +110,8 @@ else
     check "#10 Linux .zshrc starts at the PATH comment" first_line "$C/dot_zshrc" "# If you come from bash you might have to change your \$PATH."
 fi
 
-# User bins on PATH in every zsh (.zshenv), deduplicated, and last so they precede Homebrew/libpq.
-user_bins='export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"'
+# ~/.local/bin on PATH in every zsh (.zshenv), deduplicated, and last so it precedes Homebrew/libpq.
+user_bins='export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"'
 for dir in "$C" "$P"; do
     p=$(basename "$dir")
     check "path: $p .zshenv dedups PATH (typeset -U path PATH)" bash -c "grep -qx 'typeset -U path PATH' '$dir/dot_zshenv'"

@@ -242,8 +242,8 @@ mermaid-cli depend on an earlier script.
 
 | File | Contents | Read by |
 |---|---|---|
-| `dot_zshenv.tmpl` → `~/.zshenv` | Corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, then `~/.local/bin` and `~/bin` ahead of Homebrew and system dirs (`typeset -U path PATH`) | Every zsh |
-| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` and `~/bin` prepended again (after macOS `path_helper`), nvm, Oh My Zsh | Interactive zsh only |
+| `dot_zshenv.tmpl` → `~/.zshenv` | Corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, then `~/.local/bin` ahead of Homebrew and system dirs (`typeset -U path PATH`) | Every zsh |
+| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` prepended again (after macOS `path_helper`), nvm, Oh My Zsh | Interactive zsh only |
 
 **Flow**
 
@@ -268,7 +268,8 @@ interactive shells.
   before Homebrew is on PATH and when a tool is not installed.
 - `~/.local/bin` precedes Homebrew and the system directories in every zsh: `.zshenv` adds it last,
   and `.zshrc` re-adds it after macOS `path_helper`. `typeset -U path PATH` keeps each entry once.
-  In interactive shells nvm's node bin precedes it.
+  In interactive shells nvm's node bin precedes it. It is the only user bin directory; `~/bin` is
+  not on PATH.
 
 **Failure modes**
 
