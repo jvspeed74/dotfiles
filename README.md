@@ -9,7 +9,7 @@ TLS-inspecting corporate proxy.
 **Personal machine**, in a real terminal:
 
 ```bash
-bash -c "$(curl -fsLS get.chezmoi.io)" -- init --apply jvspeed74
+bash -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply jvspeed74
 ```
 
 The repo is private: git asks for credentials during the clone

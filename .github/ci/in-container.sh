@@ -49,6 +49,18 @@ echo "=== checks ($mode)"
 check "#2 login shell is /usr/bin/zsh" test "$(getent passwd "$USER" | cut -d: -f7)" = /usr/bin/zsh
 check "#2 cargo resolves in non-interactive zsh (.zshenv)" zsh -c 'command -v cargo >/dev/null'
 check "#2 .zshenv has exactly one cargo env line" test "$(grep -c '.cargo/env' "$HOME/.zshenv")" = 1
+# env -i: this script's own PATH export (top) would otherwise hide a .zshenv without ~/.local/bin.
+clean_zsh() { env -i HOME="$HOME" USER="$USER" zsh -c "$1"; }
+check "path: chezmoi, uv, uvx resolve in non-interactive zsh from a clean env" \
+    clean_zsh 'command -v chezmoi uv uvx >/dev/null'
+user_bins="$HOME/.local/bin /usr/local/bin"
+check "path: non-interactive zsh PATH starts with ~/.local/bin, /usr/local/bin" \
+    test "$(clean_zsh 'print -l $path[1,2]' 2>/dev/null | tr '\n' ' ')" = "$user_bins "
+# Interactive: nvm prepends its node bin when .zshrc loads it, so check order, not position.
+check "path: interactive zsh PATH has ~/.local/bin before Homebrew" \
+    zsh -i -c '(( path[(i)$HOME/.local/bin] < path[(i)/home/linuxbrew/.linuxbrew/bin] && path[(i)/home/linuxbrew/.linuxbrew/bin] <= $#path ))' </dev/null
+check "path: interactive zsh PATH has no duplicate entries" \
+    test -z "$(zsh -i -c 'print -l $path' </dev/null 2>/dev/null | sort | uniq -d)"
 for tool in brew gh rg fd lazygit uv node mmdc; do
     check "tool resolves in interactive zsh: $tool" zsh -i -c "command -v $tool >/dev/null" </dev/null
 done

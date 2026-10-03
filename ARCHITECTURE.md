@@ -43,7 +43,7 @@ Every layer below uses the same sections: **Responsibility**, **Files**, **Flow*
 
 | Item | Role |
 |---|---|
-| `get.chezmoi.io` (external) | Shell installer. Puts `chezmoi` in `./bin` relative to the current directory, then runs `chezmoi init --apply <repo>`. |
+| `get.chezmoi.io` (external) | Shell installer. `-b "$HOME/.local/bin"` puts `chezmoi` in `~/.local/bin` (default: `./bin` relative to the current directory), then runs `chezmoi init --apply <repo>`. |
 | GitHub `jvspeed74/dotfiles` | Cloned into the source state. The repo is private, so the clone needs credentials. |
 | `.chezmoi.toml.tmpl` | Defines the questions `init` asks (layer 2). |
 
@@ -56,7 +56,7 @@ sequenceDiagram
     participant H as GitHub
     participant C as chezmoi
     U->>G: curl the installer
-    G->>U: chezmoi binary in ./bin
+    G->>U: chezmoi binary in ~/.local/bin
     U->>C: init --apply jvspeed74
     C->>H: git clone (private repo, needs PAT or SSH)
     C->>U: prompts: is_corporate, proxy URL, CA path
@@ -242,8 +242,8 @@ mermaid-cli depend on an earlier script.
 
 | File | Contents | Read by |
 |---|---|---|
-| `dot_zshenv.tmpl` → `~/.zshenv` | Corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH | Every zsh |
-| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` and `~/bin` on PATH, nvm, Oh My Zsh | Interactive zsh only |
+| `dot_zshenv.tmpl` → `~/.zshenv` | Corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, then `~/.local/bin` ahead of Homebrew and system dirs (`typeset -U path PATH`) | Every zsh |
+| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` prepended again (after macOS `path_helper`), nvm, Oh My Zsh | Interactive zsh only |
 
 **Flow**
 
@@ -266,7 +266,10 @@ interactive shells.
   `path_helper` would reorder anything `.zshenv` puts on PATH for login shells.
 - `.zshenv` refers to Homebrew tools by absolute path behind `[[ -x … ]]` guards, so it works
   before Homebrew is on PATH and when a tool is not installed.
-- `~/.local/bin` is first on PATH in interactive shells.
+- `~/.local/bin` precedes Homebrew and the system directories in every zsh: `.zshenv` adds it last,
+  and `.zshrc` re-adds it after macOS `path_helper`. `typeset -U path PATH` keeps each entry once.
+  In interactive shells nvm's node bin precedes it. It is the only user bin directory; `~/bin` is
+  not on PATH.
 
 **Failure modes**
 
