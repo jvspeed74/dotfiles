@@ -18,12 +18,6 @@ sudo apt-get install -y \
     python3-venv \
     zsh
 
-# rg, fd, and gh now come from Homebrew (after_17, after_18). Remove the fd -> fdfind symlink an
-# earlier version created; ~/.local/bin precedes Homebrew in PATH and would shadow brew's fd.
-if [[ -L "$HOME/.local/bin/fd" && "$(readlink "$HOME/.local/bin/fd")" == *fdfind ]]; then
-    rm "$HOME/.local/bin/fd"
-fi
-
 # Ubuntu defaults to bash; without this, ~/.zshenv and ~/.zshrc are never read.
 zsh_path="$(command -v zsh)"
 if [[ "$(getent passwd "$USER" | cut -d: -f7)" != "$zsh_path" ]]; then

@@ -6,8 +6,16 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
+{{ if eq .chezmoi.os "darwin" -}}
 eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 brew install gh
+{{ else -}}
+{{ template "install-release" . }}
+{{ template "install-release-call" (dict "name" "gh" "tool" .linuxTools.gh) }}
+export PATH="$HOME/.local/bin:$PATH"
+{{ end -}}
 
 command -v gh >/dev/null || { echo "gh not on PATH after install" >&2; exit 1; }
 gh --version >/dev/null || { echo "gh binary did not run" >&2; exit 1; }
+# .gitconfig's credential helper calls gh by this absolute path.
+[[ -x "{{ template "gh-path" . }}" ]] || { echo "gh missing at {{ template "gh-path" . }}" >&2; exit 1; }

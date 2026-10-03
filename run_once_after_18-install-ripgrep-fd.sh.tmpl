@@ -6,8 +6,15 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
+{{ if eq .chezmoi.os "darwin" -}}
 eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 brew install ripgrep fd
+{{ else -}}
+{{ template "install-release" . }}
+{{ template "install-release-call" (dict "name" "ripgrep" "tool" .linuxTools.ripgrep) }}
+{{ template "install-release-call" (dict "name" "fd" "tool" .linuxTools.fd) }}
+export PATH="$HOME/.local/bin:$PATH"
+{{ end -}}
 
 rg --version >/dev/null || { echo "ripgrep not runnable after install" >&2; exit 1; }
 fd --version >/dev/null || { echo "fd not runnable after install" >&2; exit 1; }

@@ -1,0 +1,62 @@
+# Linux tool versions (macOS installs these with Homebrew). Linux never uses Homebrew: on the
+# corporate network ghcr.io (Homebrew's packages) and raw.githubusercontent.com are blocked, while
+# GitHub release downloads and PyPI are not.
+#
+# Each release tool is a GitHub release asset installed by .chezmoitemplates/install-release.
+# Bumping tag/asset/sha256 changes the rendered install script, so chezmoi re-runs it everywhere.
+# sha256: checked against the project's published checksums for fzf, ripgrep, lazygit, gh; neovim,
+# tree-sitter and fd publish none, so theirs were recorded from the first download.
+# bins: paths inside the archive linked into ~/.local/bin (for a .gz, the name to decompress to).
+
+[linuxTools.nvim]
+repo = "neovim/neovim"
+tag = "v0.12.5"
+asset = "nvim-linux-x86_64.tar.gz"
+sha256 = "bce0f56eda1f1b1db6eee8f4133d7a38813ea07933837dd1777411ca384c6875"
+bins = ["nvim-linux-x86_64/bin/nvim"]
+
+[linuxTools.treeSitter]
+repo = "tree-sitter/tree-sitter"
+tag = "v0.27.0"
+asset = "tree-sitter-linux-x64.gz"
+sha256 = "20a1f39ec1c45f2211492dcb8881c802b643b554bb196869a29ac3778277fa77"
+bins = ["tree-sitter"]
+
+[linuxTools.fzf]
+repo = "junegunn/fzf"
+tag = "v0.74.4"
+asset = "fzf-0.74.4-linux_amd64.tar.gz"
+sha256 = "05e6813a337cc722c3ed07e54a764b75cc5d671e2e60459db0ba696ee5fa7504"
+bins = ["fzf"]
+
+[linuxTools.ripgrep]
+repo = "BurntSushi/ripgrep"
+tag = "15.2.0"
+asset = "ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz"
+sha256 = "33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c"
+bins = ["ripgrep-15.2.0-x86_64-unknown-linux-musl/rg"]
+
+[linuxTools.fd]
+repo = "sharkdp/fd"
+tag = "v10.5.0"
+asset = "fd-v10.5.0-x86_64-unknown-linux-musl.tar.gz"
+sha256 = "761c72dc8e120d85b22292063be8a796e2eeb20eb3e4f38b8fa2343ccf3514a7"
+bins = ["fd-v10.5.0-x86_64-unknown-linux-musl/fd"]
+
+[linuxTools.lazygit]
+repo = "jesseduffield/lazygit"
+tag = "v0.65.1"
+asset = "lazygit_0.65.1_linux_x86_64.tar.gz"
+sha256 = "02beacbcda0fa342e50ae3480ba8147307353af3fb28e1d5f790e02329c201a6"
+bins = ["lazygit"]
+
+[linuxTools.gh]
+repo = "cli/cli"
+tag = "v2.102.0"
+asset = "gh_2.102.0_linux_amd64.tar.gz"
+sha256 = "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386"
+bins = ["gh_2.102.0_linux_amd64/bin/gh"]
+
+# PyPI, via `uv tool install` (after_20).
+[linuxTools.snowflakeCli]
+version = "3.28.0"

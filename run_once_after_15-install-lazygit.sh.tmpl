@@ -6,12 +6,14 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
+{{ if eq .chezmoi.os "darwin" -}}
 # after_05's shellenv ran in its own process; brew is not on this script's PATH on a fresh machine.
 eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 brew install lazygit
-{{ if eq .chezmoi.os "linux" -}}
-# Remove the binary an earlier Go source build left; ~/.local/bin precedes Homebrew in PATH.
-rm -f "$HOME/.local/bin/lazygit"
+{{ else -}}
+{{ template "install-release" . }}
+{{ template "install-release-call" (dict "name" "lazygit" "tool" .linuxTools.lazygit) }}
+export PATH="$HOME/.local/bin:$PATH"
 {{ end -}}
 
 command -v lazygit >/dev/null || { echo "lazygit not on PATH after install" >&2; exit 1; }
