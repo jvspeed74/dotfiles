@@ -130,6 +130,40 @@ for dir in "$C" "$P"; do
     check "path: $p .zshrc prepends via _dotfiles_path_prepend" \
         grep -qx '_dotfiles_path_prepend "$HOME/.local/bin" /usr/local/bin' "$dir/dot_zshrc"
 done
+
+# Node: the newest nvm-installed version is on PATH in every zsh (.zshenv); nvm itself loads on
+# first use (.zshrc). nvm's installer greps the profile for "/nvm.sh" and "$NVM_DIR/bash_completion"
+# and appends its own lines to the managed .zshrc if either is missing.
+for dir in "$C" "$P"; do
+    p=$(basename "$dir")
+    check "node: $p .zshenv exports NVM_DIR" grep -qx 'export NVM_DIR="$HOME/.nvm"' "$dir/dot_zshenv"
+    check "node: $p .zshenv picks the newest nvm Node numerically" \
+        has "$dir/dot_zshenv" '_nvm_bins=( $NVM_DIR/versions/node/v*/bin(N/nOn) )'
+    check "node: $p .zshrc does not export NVM_DIR or load nvm at startup" \
+        bash -c '! grep -qE "export NVM_DIR=|# This loads nvm" "$1"' _ "$dir/dot_zshrc"
+    check "node: $p .zshrc keeps nvm installer markers (/nvm.sh, \$NVM_DIR/bash_completion)" \
+        bash -c 'grep -qF "/nvm.sh" "$1" && grep -qF "\$NVM_DIR/bash_completion" "$1"' _ "$dir/dot_zshrc"
+done
+if command -v zsh >/dev/null; then
+    # Fake nvm installs: the numeric sort must pick v24.21.0 (a text sort picks v24.9.0 or v9.0.0).
+    fake="$work/nvm-home"
+    for v in v9.0.0 v24.9.0 v24.21.0; do
+        mkdir -p "$fake/.nvm/versions/node/$v/bin"
+        printf '#!/bin/sh\necho %s\n' "$v" > "$fake/.nvm/versions/node/$v/bin/node"
+        chmod +x "$fake/.nvm/versions/node/$v/bin/node"
+    done
+    cp "$P/dot_zshenv" "$fake/.zshenv"
+    newest="$fake/.nvm/versions/node/v24.21.0/bin"
+    fake_zsh() { env -i HOME="$fake" PATH=/usr/bin:/bin zsh "$@" 2>/dev/null; }
+    check "node: non-interactive zsh resolves node to the newest nvm version (v24.21.0)" \
+        test "$(fake_zsh -c 'command -v node')" = "$newest/node"
+    check "node: older nvm versions are not on PATH" \
+        bash -c '! grep -qE "/(v9\.0\.0|v24\.9\.0)/bin$" <<<"$1"' _ "$(fake_zsh -c 'print -l $path')"
+    # A login shell also runs /etc/zprofile, where macOS's path_helper reorders PATH. The nvm bin must
+    # survive it; it may land behind system dirs, which on a CI runner can hold their own node.
+    check "node: login zsh keeps the newest nvm bin on PATH (after path_helper on macOS)" \
+        grep -qxF "$newest" <<<"$(fake_zsh -lc 'print -l $path')"
+fi
 for script in run_once_after_15-install-lazygit.sh run_once_after_17-install-gh.sh run_once_after_18-install-ripgrep-fd.sh; do
     check "#10 $script evals brew shellenv ($brew_prefix)" has "$C/$script" "$shellenv"
 done

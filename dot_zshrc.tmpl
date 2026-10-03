@@ -10,9 +10,15 @@
 # If you come from bash you might have to change your $PATH.
 _dotfiles_path_prepend "$HOME/.local/bin" /usr/local/bin
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+# node comes from ~/.zshenv; the nvm command loads on first use (~0.4 s once, not every shell).
+# Keep the "/nvm.sh" and "$NVM_DIR/bash_completion" strings: nvm's installer greps for them and
+# would otherwise append its own lines to this managed file.
+nvm() {
+    unfunction nvm
+    . "$NVM_DIR/nvm.sh"
+    [[ -s "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
+    nvm "$@"
+}
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"

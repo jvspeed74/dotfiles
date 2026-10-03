@@ -39,6 +39,13 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 # libpq is keg-only (not linked into bin), so add its bin for psql.
 [[ -d {{ template "brew-prefix" . }}/opt/libpq/bin ]] && _dotfiles_path_prepend {{ template "brew-prefix" . }}/opt/libpq/bin
 
+# Newest nvm-installed Node on PATH for every zsh (node, npm, mmdc, Mason's npm servers); the nvm
+# command itself loads on first use in .zshrc. n = numeric sort, so v24.21.0 beats v24.9.0.
+export NVM_DIR="$HOME/.nvm"
+_nvm_bins=( $NVM_DIR/versions/node/v*/bin(N/nOn) )
+(( $#_nvm_bins )) && _dotfiles_path_prepend $_nvm_bins[1]
+unset _nvm_bins
+
 # ~/.local/bin (the only user bin dir) ahead of Homebrew, libpq, and system dirs in every fresh
 # zsh, so `wsl.exe chezmoi …` and `zsh -c uv …` resolve. Last in this file so it precedes them.
 _dotfiles_path_prepend "$HOME/.local/bin"
