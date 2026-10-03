@@ -7,7 +7,7 @@ Tasks for the person using a machine set up from this repo. Each task: **When** 
 
 ### Personal machine
 
-**When:** a Mac (Apple Silicon) or WSL2 Ubuntu 24.04 machine with no corporate proxy.
+**When:** a Mac (Apple Silicon) or WSL2 Ubuntu 24.04 or 26.04 machine with no corporate proxy.
 
 **Steps**
 
@@ -71,7 +71,8 @@ it downloads chezmoi and clones the repo before any repo script runs.
 **Steps**
 
 1. Confirm WSL2: `wsl -l -v` in PowerShell shows `VERSION 2`.
-2. Use Ubuntu 24.04 or later (the apt script installs `libasound2t64`, which 22.04 lacks).
+2. Use Ubuntu 24.04 or 26.04, the CI-tested releases. 22.04 fails: the apt script installs
+   `libasound2t64`, which 22.04 lacks.
 3. If the proxy listens on `127.0.0.1` on the Windows host, set `networkingMode=mirrored` in
    `%UserProfile%\.wslconfig`, then run `wsl --shutdown`. WSL2's default NAT cannot reach it.
 4. Export the corporate root CA from the Windows certificate store to a path under `/mnt/c/…`, then

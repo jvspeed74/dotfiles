@@ -1,8 +1,8 @@
 # dotfiles
 
 [chezmoi](https://chezmoi.io)-managed configuration and tool setup for macOS (Apple Silicon;
-bootstrap not CI-tested) and WSL2 Ubuntu 24.04, on personal machines or behind a TLS-inspecting
-corporate proxy.
+bootstrap not CI-tested) and WSL2 Ubuntu 24.04 or 26.04, on personal machines or behind a
+TLS-inspecting corporate proxy.
 
 ## Quick start
 

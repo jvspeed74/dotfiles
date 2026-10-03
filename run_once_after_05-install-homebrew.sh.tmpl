@@ -11,12 +11,13 @@ brew_bin="{{ template "brew-prefix" . }}/bin/brew"
 
 {{ if eq .chezmoi.os "linux" -}}
 # Homebrew's documented Linux prerequisites.
-sudo -v
+# `sudo -v` prompts unless credentials are cached or every matching sudoers rule is NOPASSWD.
+sudo -n true 2>/dev/null || sudo -v
 sudo apt-get update
 sudo apt-get install -y build-essential procps curl file git
 
 if [[ ! -x "$brew_bin" ]]; then
-    # NONINTERACTIVE skips the "press RETURN" prompt; sudo is already cached by `sudo -v` above.
+    # NONINTERACTIVE skips the "press RETURN" prompt; sudo access is already established above.
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 {{ else -}}

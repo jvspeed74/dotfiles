@@ -24,7 +24,11 @@ permissions:
 jobs:
   templates:
     runs-on: ubuntu-24.04
-    container: ubuntu:24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '26.04']
+    container: ubuntu:${{ matrix.ubuntu }}
     timeout-minutes: 15
     steps:
       - run: apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git
@@ -34,12 +38,17 @@ jobs:
 
   bootstrap-personal:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '26.04']
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       # Homebrew download cache, personal job only. Install logic still runs in full; Homebrew
       # verifies cached bottles against the formula's checksum and re-downloads stale ones.
       # bootstrap-corporate never caches: its downloads crossing the proxy are what it tests.
+      # One key for both releases: the downloads are identical (PR #14 compared all 118 files).
       - id: week
         run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
@@ -50,13 +59,20 @@ jobs:
       - run: .github/ci/run-bootstrap.sh personal
         env:
           HOMEBREW_CACHE_HOST: ${{ runner.temp }}/homebrew-cache
+          UBUNTU_VERSION: ${{ matrix.ubuntu }}
 
   bootstrap-corporate:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '26.04']
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - run: .github/ci/run-bootstrap.sh corporate
+        env:
+          UBUNTU_VERSION: ${{ matrix.ubuntu }}
 
   # Manual only: macOS minutes bill at a multiple of Linux minutes on private repos.
   # The runner already has Homebrew and gh on PATH, so this cannot reproduce a fresh Mac.

@@ -74,6 +74,10 @@ x86_64, which is emulated and slow on Apple Silicon; CI runs it natively.
 .github/ci/run-bootstrap.sh corporate
 ```
 
+Both default to `ubuntu:24.04`. CI also runs every job in `ubuntu:26.04`; to match it, prefix
+either command with `UBUNTU_VERSION=26.04`. The test user is in group `sudo` with a NOPASSWD rule,
+so a bare `sudo -v` in a `run_*` script fails there; use `sudo -n true 2>/dev/null || sudo -v`.
+
 **Docs checks**: renders every Mermaid diagram and checks links, anchors, and backticked repo paths:
 
 ```bash

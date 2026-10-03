@@ -53,6 +53,9 @@ check "config: is_corporate renders true/false" \
 for script in "$C"/run_*.sh "$P"/run_*.sh; do
     check "bash -n $(basename "$(dirname "$script")")/$(basename "$script")" bash -n "$script"
 done
+# A bare `sudo -v` prompts for a NOPASSWD user in %sudo; scripts use `sudo -n true || sudo -v`.
+check "sudo: no bare \`sudo -v\` line in rendered run_* scripts" \
+    bash -c '! grep -lEx "[[:space:]]*sudo -v" "$@"' _ "$C"/run_*.sh "$P"/run_*.sh
 if command -v zsh >/dev/null; then
     for f in "$C/dot_zshrc" "$C/dot_zshenv" "$P/dot_zshrc" "$P/dot_zshenv"; do
         check "zsh -n ${f#"$work"/}" zsh -n "$f"
