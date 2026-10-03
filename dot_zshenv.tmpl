@@ -1,4 +1,11 @@
 # Read by every zsh, including non-interactive ones (e.g. `wsl.exe <cmd>`), unlike .zshrc.
+
+# PATH additions go through _dotfiles_path_prepend: it prepends only dirs not already on PATH, in
+# argument order, so a nested zsh keeps its parent's order (e.g. an activated venv stays first).
+# -U keeps the first copy of each entry; it needs both names, since a plain `typeset -U path` does
+# not dedup assignments to the scalar PATH (macOS login shells in .zshrc still assign it).
+typeset -U path PATH
+_dotfiles_path_prepend() { local d; for d in ${(Oa)@}; do (( ${path[(Ie)$d]} )) || path=("$d" $path); done }
 {{- if .is_corporate }}
 export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
@@ -20,8 +27,9 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 {{- if eq .chezmoi.os "linux" }}
 
 # Homebrew (Linux). Here rather than .zshrc so non-interactive shells (`wsl.exe <cmd>`, `zsh -c`)
-# find brew tools too; the PATH export at the end of this file puts ~/.local/bin ahead.
-[[ -x {{ template "brew-prefix" . }}/bin/brew ]] && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
+# find brew tools too; the last line of this file puts ~/.local/bin ahead. shellenv prepends
+# unconditionally, so skip it when Homebrew is already on PATH (a nested shell).
+[[ -x {{ template "brew-prefix" . }}/bin/brew ]] && (( ! ${path[(Ie){{ template "brew-prefix" . }}/bin]} )) && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 {{- end }}
 
 # Editor and dev tools. Absolute Homebrew paths, so these also work on macOS, where .zshenv runs
@@ -29,12 +37,8 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 [[ -x {{ template "brew-prefix" . }}/bin/nvim ]] && export EDITOR={{ template "brew-prefix" . }}/bin/nvim VISUAL={{ template "brew-prefix" . }}/bin/nvim
 [[ -d {{ template "brew-prefix" . }}/opt/dotnet/libexec ]] && export DOTNET_ROOT={{ template "brew-prefix" . }}/opt/dotnet/libexec
 # libpq is keg-only (not linked into bin), so add its bin for psql.
-[[ -d {{ template "brew-prefix" . }}/opt/libpq/bin && ":$PATH:" != *":{{ template "brew-prefix" . }}/opt/libpq/bin:"* ]] && export PATH="{{ template "brew-prefix" . }}/opt/libpq/bin:$PATH"
+[[ -d {{ template "brew-prefix" . }}/opt/libpq/bin ]] && _dotfiles_path_prepend {{ template "brew-prefix" . }}/opt/libpq/bin
 
-# ~/.local/bin (the only user bin dir) ahead of Homebrew, libpq, and system dirs in every zsh, so
-# `wsl.exe chezmoi …` and `zsh -c uv …` resolve. Last in this file so it precedes Homebrew and
-# libpq. .zshrc prepends the same dirs again for interactive shells (macOS path_helper reorders
-# PATH in between). -U keeps the first copy of each entry; it needs both names, since a plain
-# `typeset -U path` does not dedup assignments to the scalar PATH.
-typeset -U path PATH
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+# ~/.local/bin (the only user bin dir) ahead of Homebrew, libpq, and system dirs in every fresh
+# zsh, so `wsl.exe chezmoi …` and `zsh -c uv …` resolve. Last in this file so it precedes them.
+_dotfiles_path_prepend "$HOME/.local/bin"

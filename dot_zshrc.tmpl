@@ -1,11 +1,14 @@
 {{ if eq .chezmoi.os "darwin" -}}
-# Homebrew (macOS). Before the PATH line below so ~/.local/bin still takes precedence.
+# Homebrew (macOS). Before the PATH lines below so ~/.local/bin still takes precedence.
 # On Linux, ~/.zshenv sets this up instead so non-interactive shells get it too.
-[[ -x {{ template "brew-prefix" . }}/bin/brew ]] && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
+# Login shells: /etc/zprofile's path_helper just moved the system dirs to the front, so prepend
+# unconditionally. Other shells (e.g. `zsh` from an activated venv) keep the parent's order.
+[[ -x {{ template "brew-prefix" . }}/bin/brew ]] && { [[ -o login ]] || (( ! ${path[(Ie){{ template "brew-prefix" . }}/bin]} )) } && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
+[[ -o login ]] && path=("$HOME/.local/bin" /usr/local/bin $path)
 
 {{ end -}}
 # If you come from bash you might have to change your $PATH.
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+_dotfiles_path_prepend "$HOME/.local/bin" /usr/local/bin
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
