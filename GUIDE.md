@@ -190,7 +190,8 @@ For files that differ per OS or per corporate/personal, see
 
 ### Add a script to your PATH
 
-**When:** a personal command should exist on every machine. `~/.local/bin` is first on PATH.
+**When:** a personal command should exist on every machine. `~/.local/bin` precedes Homebrew and
+the system directories on PATH.
 
 **Steps**
 

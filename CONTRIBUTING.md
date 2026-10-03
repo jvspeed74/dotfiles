@@ -12,7 +12,7 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | End every install script with a check that the tool runs, and `exit 1` if it does not. | A failed `run_once_` script is retried on the next apply; a silent failure never is. |
 | Make every script idempotent. | Any change to a script's rendered content re-runs it on every machine already provisioned. |
 | Evaluate `brew shellenv` in every script that calls `brew`. | Scripts run in separate `bash` processes; nothing exported by `after_05` reaches them. |
-| Add PATH entries with `_dotfiles_path_prepend <dir>…` (defined in `dot_zshenv.tmpl`), never `export PATH=`. | It skips directories already on PATH, so a nested shell keeps its parent's order (an activated venv stays first) ([layer 5](ARCHITECTURE.md#5-shell-environment)). |
+| Add PATH entries with `_dotfiles_path_prepend <dir>…` (defined in `dot_zshenv.tmpl`), never `export PATH=`. The one exception is the macOS login-shell line in `dot_zshrc.tmpl`, which prepends unconditionally after `path_helper` ([layer 5](ARCHITECTURE.md#5-shell-environment)). | It skips directories already on PATH, so a nested shell keeps its parent's order (an activated venv stays first) ([layer 5](ARCHITECTURE.md#5-shell-environment)). |
 | Put variables that non-interactive commands need in `dot_zshenv.tmpl`, not `dot_zshrc.tmpl`. | `zsh -c` and `wsl.exe <cmd>` never read `~/.zshrc` ([layer 5](ARCHITECTURE.md#5-shell-environment)). |
 | Wrap corporate-only content in `{{ if .is_corporate }}`. | Personal machines must render none of it ([layer 2](ARCHITECTURE.md#2-config-data-and-templating)). |
 | Build OS-dependent paths from a `.chezmoitemplates/` partial. | One place to change per OS, instead of a path copied into many files. |
@@ -228,8 +228,8 @@ middle of a line.
 
 **Verify:** both bootstrap jobs; a second `chezmoi apply` in CI must change nothing.
 
-**Pitfall:** an old binary in `~/.local/bin` shadows the new one, because `~/.local/bin` is first on
-PATH.
+**Pitfall:** an old binary in `~/.local/bin` shadows the new one, because `~/.local/bin` precedes
+Homebrew on PATH.
 
 ### R7. Re-run a run_once_ script on one machine
 
