@@ -119,7 +119,10 @@ about 7–10 minutes on a GitHub runner; laptop time and disk use are unmeasured
 | Corporate CA trusted (corporate, Linux) | `/usr/local/share/ca-certificates/corporate-root-ca.crt` | `sudo rm /usr/local/share/ca-certificates/corporate-root-ca.crt && sudo update-ca-certificates --fresh` |
 | Corporate CA trusted (corporate, macOS) | System keychain | `sudo security delete-certificate -c "<cert name>" /Library/Keychains/System.keychain` |
 | apt proxy (corporate, Linux) | `/etc/apt/apt.conf.d/95corporate-proxy` | `sudo rm /etc/apt/apt.conf.d/95corporate-proxy` |
-| Homebrew and its packages | `/opt/homebrew` or `/home/linuxbrew/.linuxbrew` | Homebrew's uninstall script |
+| Homebrew and its packages (macOS) | `/opt/homebrew` | Homebrew's uninstall script |
+| Release tools (Linux: nvim, tree-sitter, fzf, rg, fd, lazygit, gh) | `~/.local/opt/<tool>/`, linked from `~/.local/bin` | Delete `~/.local/opt` and the links |
+| Snowflake CLI (Linux) | uv tool | `uv tool uninstall snowflake-cli` |
+| .NET SDK, psql (Linux) | apt | `sudo apt remove dotnet-sdk-10.0 postgresql-client` |
 | Tool directories | `~/.oh-my-zsh`, `~/.nvm`, `~/.cargo`, `~/.rustup`, `~/.local/bin/uv` | Delete the directory |
 | Neovim config and plugins | `~/.config/nvim`, `~/.local/share/nvim` | Delete both |
 
@@ -161,12 +164,14 @@ about 7–10 minutes on a GitHub runner; laptop time and disk use are unmeasured
 
 ### Update installed tools
 
-**When:** you want newer versions. Install scripts are `run_once_`: they never upgrade anything,
-and `chezmoi update` does not either.
+**When:** you want newer versions. Install scripts are `run_once_`: they re-run only when their
+rendered content changes, so most tools are upgraded by hand. Linux release tools are the
+exception: their versions are pinned in the repo.
 
 | Tool | Command |
 |---|---|
-| Homebrew packages | `brew upgrade` |
+| Homebrew packages (macOS) | `brew upgrade` |
+| Release tools and Snowflake CLI (Linux) | In the repo, bump the tool's `tag`, `asset` and `sha256` (or `version`) in `.chezmoidata/linux-tools.toml` and merge it; then `chezmoi update` re-runs that install on each machine ([CONTRIBUTING R1](CONTRIBUTING.md#r1-add-a-cli-tool)) |
 | apt packages (Linux) | `sudo apt update && sudo apt upgrade` |
 | Rust | `rustup update` |
 | Node (keeps global npm packages such as mermaid-cli) | `nvm install --lts --reinstall-packages-from=current`; new shells use the newest installed version, and the first `nvm` in a shell loads nvm (~0.4 s) |
@@ -190,8 +195,8 @@ For files that differ per OS or per corporate/personal, see
 
 ### Add a script to your PATH
 
-**When:** a personal command should exist on every machine. `~/.local/bin` precedes Homebrew and
-the system directories on PATH.
+**When:** a personal command should exist on every machine. `~/.local/bin` precedes Homebrew
+(macOS) and the system directories on PATH. On Linux it also holds the release tools' links.
 
 **Steps**
 

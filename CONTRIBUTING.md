@@ -11,24 +11,26 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | Name every script `run_once_after_NN-…` or `run_onchange_before_NN-…`, with an explicit `before_`/`after_`. | The infix sets the phase; `NN` sets the order within it ([layer 3](ARCHITECTURE.md#3-apply-engine-and-ordering)). |
 | End every install script with a check that the tool runs, and `exit 1` if it does not. | A failed `run_once_` script is retried on the next apply; a silent failure never is. |
 | Make every script idempotent. | Any change to a script's rendered content re-runs it on every machine already provisioned. |
-| Evaluate `brew shellenv` in every script that calls `brew`. | Scripts run in separate `bash` processes; nothing exported by `after_05` reaches them. |
+| Evaluate `brew shellenv` in every script that calls `brew` (macOS only; Linux never uses Homebrew). | Scripts run in separate `bash` processes; nothing exported by `after_05` reaches them. |
+| On Linux, install CLI tools from a pinned release with `install_release`, apt or PyPI, never Homebrew. | The corporate proxy blocks `ghcr.io` and `raw.githubusercontent.com`, which Homebrew needs ([layer 4](ARCHITECTURE.md#4-provisioning-scripts)). |
 | Add PATH entries with `_dotfiles_path_prepend <dir>…` (defined in `dot_zshenv.tmpl`), never `export PATH=`. The one exception is the macOS login-shell line in `dot_zshrc.tmpl`, which prepends unconditionally after `path_helper` ([layer 5](ARCHITECTURE.md#5-shell-environment)). | It skips directories already on PATH, so a nested shell keeps its parent's order (an activated venv stays first) ([layer 5](ARCHITECTURE.md#5-shell-environment)). |
 | Put variables that non-interactive commands need in `dot_zshenv.tmpl`, not `dot_zshrc.tmpl`. | `zsh -c` and `wsl.exe <cmd>` never read `~/.zshrc` ([layer 5](ARCHITECTURE.md#5-shell-environment)). |
 | Wrap corporate-only content in `{{ if .is_corporate }}`. | Personal machines must render none of it ([layer 2](ARCHITECTURE.md#2-config-data-and-templating)). |
 | Build OS-dependent paths from a `.chezmoitemplates/` partial. | One place to change per OS, instead of a path copied into many files. |
 | Never let an installer edit a chezmoi-managed file. | The edit shows as drift and is reverted on the next apply ([layer 4](ARCHITECTURE.md#4-provisioning-scripts)). |
-| Fetch tools with `git clone` from github.com or from a release download, not from `raw.githubusercontent.com`. | The corporate proxy blocks `raw.githubusercontent.com` (and `ghcr.io`); `after_05` (Homebrew) is the remaining exception. |
+| Fetch tools with `git clone` from github.com or from a release download, not from `raw.githubusercontent.com`. | The corporate proxy blocks `raw.githubusercontent.com` (and `ghcr.io`); the corporate CI job blocks both too. Only macOS's `after_05` (Homebrew) uses it. |
 | Add any new file under `dot_config/nvim/` to `managed_re` in `run_once_after_19-install-neovim-lazyvim.sh.tmpl`. | Otherwise fresh machines treat it as a user config and skip the LazyVim bootstrap. |
 | Edit source files, not targets in `~`. | `chezmoi apply` overwrites targets from source. |
 | Start every script with `#!/usr/bin/env bash` and `set -euo pipefail`. | A failing command must stop the script, so its self-check never reports a half-install as success. |
-| Never wait for input: `apt-get -y`, `NONINTERACTIVE=1` for Homebrew; only `sudo` may prompt. | Any other prompt hangs the bootstrap. |
+| Never wait for input: `apt-get -y` (with `DEBIAN_FRONTEND=noninteractive` and `--force-confold` where a dependency upgrade could hit a conffile prompt), `NONINTERACTIVE=1` for Homebrew; only `sudo` may prompt. | Any other prompt hangs the bootstrap. |
 
 ## Repo map
 
 | Path | Role | Layer |
 |---|---|---|
 | `.chezmoi.toml.tmpl` | `init` prompts; per-machine data | [2](ARCHITECTURE.md#2-config-data-and-templating) |
-| `.chezmoitemplates/brew-prefix` | Homebrew prefix per OS | [2](ARCHITECTURE.md#2-config-data-and-templating) |
+| `.chezmoidata/linux-tools.toml` | Linux tool pins (release tag, asset, sha256) | [2](ARCHITECTURE.md#2-config-data-and-templating) |
+| `.chezmoitemplates/` | Partials: `brew-prefix` (macOS), `gh-path`, `install-release`, `install-release-call` | [2](ARCHITECTURE.md#2-config-data-and-templating) |
 | `.chezmoiignore` | Repo files never applied to `~` (docs, `jetbrains/`) | [3](ARCHITECTURE.md#3-apply-engine-and-ordering) |
 | `run_onchange_before_00-import-ca-cert.sh.tmpl`, `run_onchange_before_01-configure-apt-proxy.sh.tmpl` | Corporate CA and apt proxy | [6](ARCHITECTURE.md#6-corporate-network) |
 | `run_once_after_05-…` to `run_once_after_20-…` | Tool installs | [4](ARCHITECTURE.md#4-provisioning-scripts) |
@@ -106,13 +108,18 @@ Reading a failure:
 
 Each recipe: **Use when** → **Steps** → **Verify** → **Pitfall**.
 
-### R1. Add a CLI tool from Homebrew
+### R1. Add a CLI tool
 
-**Use when:** a tool should exist on every machine and Homebrew has it for macOS and Linux.
+**Use when:** a tool should exist on every machine: Homebrew on macOS, a GitHub release on Linux.
 
 **Steps**
 
-1. Create `run_once_after_NN-install-<tool>.sh.tmpl` with the next free `NN`:
+1. Pin the Linux release in `.chezmoidata/linux-tools.toml`: `repo`, `tag`, `asset` (the
+   `x86_64`/`amd64` Linux archive, `.tar.gz` or a single-file `.gz`), `sha256` and `bins` (paths
+   inside the archive to link into `~/.local/bin`). Take `sha256` from the project's published
+   checksums; if it publishes none, download the asset and record `sha256sum` (say so in the
+   file's comment).
+2. Create `run_once_after_NN-install-<tool>.sh.tmpl` with the next free `NN`:
 
    ```bash
    #!/usr/bin/env bash
@@ -123,22 +130,29 @@ Each recipe: **Use when** → **Steps** → **Verify** → **Pitfall**.
    export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
    {{ end -}}
 
+   {{ if eq .chezmoi.os "darwin" -}}
    eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
    brew install <formula>
+   {{ else -}}
+   {{ template "install-release" . }}
+   {{ template "install-release-call" (dict "name" "<tool>" "tool" .linuxTools.<key>) }}
+   export PATH="$HOME/.local/bin:$PATH"
+   {{ end -}}
 
    <tool> --version >/dev/null || { echo "<tool> not runnable after install" >&2; exit 1; }
    ```
 
-2. Add a row to the script table in [ARCHITECTURE layer 4](ARCHITECTURE.md#4-provisioning-scripts)
+3. Add a row to the script table in [ARCHITECTURE layer 4](ARCHITECTURE.md#4-provisioning-scripts)
    and the tool to README's "What you get".
-3. In `.github/ci/templates.sh`, check the render:
-   `check "<area>: after_NN installs <formula>" has "$C/run_once_after_NN-install-<tool>.sh" "brew install <formula>"`.
-4. In `.github/ci/in-container.sh`, add `<tool>` to the `for tool in …` loop of interactive tools.
+4. In `.github/ci/templates.sh`, add `<tool>:<key>:<script>` to `release_tools` (it checks the
+   sha256 and the rendered call) and, for macOS, a `brew install <formula>` check.
+5. In `.github/ci/in-container.sh`, add `<tool>` to the `for tool in …` release loop.
 
-**Verify:** template checks locally; both bootstrap jobs in CI.
+**Verify:** template checks locally; both bootstrap jobs in CI. The corporate job blocks
+`raw.githubusercontent.com` and `ghcr.io`, so a Linux path that needs them fails there.
 
-**Pitfall:** omitting the `brew shellenv` line. It works on machines where Homebrew is already on
-the parent's PATH and fails on fresh ones.
+**Pitfall:** a script without `export PATH="$HOME/.local/bin:$PATH"` on Linux. Its self-check
+passes where `~/.local/bin` is already on the parent's PATH and fails on fresh machines.
 
 ### R2. Add a Linux-only apt package
 
@@ -224,13 +238,14 @@ middle of a line.
    `{{ if eq .chezmoi.os "darwin" }}` branch re-runs on macOS only.
 2. Keep it idempotent: installers that skip when already installed, `[[ -x … ]]` guards, and no
    appends to managed files.
-3. When replacing an install method, remove the old artifact explicitly (for example `after_15`
-   deletes the source-built `~/.local/bin/lazygit`).
+3. When replacing an install method, remove the old artifact explicitly if an old one can shadow
+   the new one on PATH. To upgrade a Linux release tool, change its pin in
+   `.chezmoidata/linux-tools.toml`; `install_release` replaces the old version itself.
 
 **Verify:** both bootstrap jobs; a second `chezmoi apply` in CI must change nothing.
 
 **Pitfall:** an old binary in `~/.local/bin` shadows the new one, because `~/.local/bin` precedes
-Homebrew on PATH.
+Homebrew (macOS) and the system directories on PATH.
 
 ### R7. Re-run a run_once_ script on one machine
 
