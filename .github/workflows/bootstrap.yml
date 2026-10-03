@@ -59,6 +59,11 @@ jobs:
         env:
           HOMEBREW_CACHE_HOST: ${{ runner.temp }}/homebrew-cache
           UBUNTU_VERSION: ${{ matrix.ubuntu }}
+      # TEMPORARY (PR #14): hash every cached file to compare the 24.04 and 26.04 caches.
+      - run: |
+          cd "${{ runner.temp }}/homebrew-cache"
+          echo "files=$(sudo find . -type f | wc -l)"
+          sudo find . -type f -exec sha256sum {} + | sort -k2 | sed 's/^/CACHEHASH /'
 
   bootstrap-corporate:
     runs-on: ubuntu-24.04

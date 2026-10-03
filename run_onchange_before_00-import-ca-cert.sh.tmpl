@@ -2,7 +2,7 @@
 set -euo pipefail
 
 {{ if .is_corporate -}}
-# `sudo -v` prompts unless every matching sudoers rule is NOPASSWD (e.g. NOPASSWD user in %sudo).
+# `sudo -v` prompts unless credentials are cached or every matching sudoers rule is NOPASSWD.
 sudo -n true 2>/dev/null || sudo -v
 
 SRC="{{ .corporate_ca_cert_source_path }}"

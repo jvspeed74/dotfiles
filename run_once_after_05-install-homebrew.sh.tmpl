@@ -11,7 +11,7 @@ brew_bin="{{ template "brew-prefix" . }}/bin/brew"
 
 {{ if eq .chezmoi.os "linux" -}}
 # Homebrew's documented Linux prerequisites.
-# `sudo -v` prompts unless every matching sudoers rule is NOPASSWD (e.g. NOPASSWD user in %sudo).
+# `sudo -v` prompts unless credentials are cached or every matching sudoers rule is NOPASSWD.
 sudo -n true 2>/dev/null || sudo -v
 sudo apt-get update
 sudo apt-get install -y build-essential procps curl file git

@@ -389,9 +389,9 @@ TLS-intercepting proxy.
 
 ```mermaid
 flowchart LR
-    W["bootstrap.yml<br/>code changes"] --> T["templates<br/>render, bash -n"]
-    W --> P["bootstrap-personal<br/>Homebrew downloads cached"]
-    W --> C["bootstrap-corporate<br/>internal network, no cache"]
+    W["bootstrap.yml<br/>code changes"] --> T["templates, 24.04 + 26.04<br/>render, bash -n"]
+    W --> P["bootstrap-personal, 24.04 + 26.04<br/>Homebrew downloads cached"]
+    W --> C["bootstrap-corporate, 24.04 + 26.04<br/>internal network, no cache"]
     C --> X["mitmproxy<br/>re-signs TLS"]
     X --> I["internet"]
     W2["docs.yml<br/>every pull request"] --> D["docs<br/>mermaid, links"]
@@ -408,7 +408,7 @@ downloads it tests.
 
 | Job | Proves |
 |---|---|
-| `templates` | Every template renders for both profiles; every script passes `bash -n`; key lines are present or absent per OS and profile. |
+| `templates` | In both `ubuntu:24.04` and `ubuntu:26.04`: every template renders for both profiles; every script passes `bash -n`; key lines are present or absent per OS and profile. |
 | `bootstrap-personal` | A full bootstrap succeeds in both `ubuntu:24.04` and `ubuntu:26.04`; tools resolve; `chezmoi status` is clean; a second apply changes nothing. Homebrew downloads come from a weekly cache; every install step still runs. |
 | `bootstrap-corporate` | The same through the intercepting proxy, plus CA and proxy behavior per tool, with negative controls. |
 | `docs` | Every Mermaid diagram renders; every relative link, anchor, and backticked repo path resolves. |

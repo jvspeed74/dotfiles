@@ -12,6 +12,14 @@ check() {
     if "$@"; then echo "PASS  $name"; else echo "FAIL  $name"; fail=1; fi
 }
 
+# Image preconditions. The control proves the NOPASSWD-in-%sudo case the run_* scripts must handle
+# is present; without it a bare `sudo -v` in a script would pass CI.
+check "sudo: control: bare sudo -n -v fails (group sudo + NOPASSWD)" bash -c '! sudo -n -v 2>/dev/null'
+. /etc/os-release
+if (( ${VERSION_ID%%.*} >= 26 )); then
+    check "sudo: /usr/bin/sudo is sudo-rs on $VERSION_ID" test "$(readlink -f /usr/bin/sudo)" = /usr/lib/cargo/bin/sudo
+fi
+
 # The source is the checked-out tree, standing in for the one-liner's GitHub clone.
 mkdir -p "$HOME/.local/share"
 cp -r /src "$HOME/.local/share/chezmoi"
