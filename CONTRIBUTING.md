@@ -17,6 +17,7 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | Wrap corporate-only content in `{{ if .is_corporate }}`. | Personal machines must render none of it ([layer 2](ARCHITECTURE.md#2-config-data-and-templating)). |
 | Build OS-dependent paths from a `.chezmoitemplates/` partial. | One place to change per OS, instead of a path copied into many files. |
 | Never let an installer edit a chezmoi-managed file. | The edit shows as drift and is reverted on the next apply ([layer 4](ARCHITECTURE.md#4-provisioning-scripts)). |
+| Fetch tools with `git clone` from github.com or from a release download, not from `raw.githubusercontent.com`. | The corporate proxy blocks `raw.githubusercontent.com` (and `ghcr.io`); `after_05` (Homebrew) is the remaining exception. |
 | Add any new file under `dot_config/nvim/` to `managed_re` in `run_once_after_19-install-neovim-lazyvim.sh.tmpl`. | Otherwise fresh machines treat it as a user config and skip the LazyVim bootstrap. |
 | Edit source files, not targets in `~`. | `chezmoi apply` overwrites targets from source. |
 | Start every script with `#!/usr/bin/env bash` and `set -euo pipefail`. | A failing command must stop the script, so its self-check never reports a half-install as success. |

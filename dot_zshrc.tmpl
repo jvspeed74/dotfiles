@@ -11,8 +11,6 @@
 _dotfiles_path_prepend "$HOME/.local/bin" /usr/local/bin
 
 # node comes from ~/.zshenv; the nvm command loads on first use (~0.4 s once, not every shell).
-# Keep the "/nvm.sh" and "$NVM_DIR/bash_completion" strings: nvm's installer greps for them and
-# would otherwise append its own lines to this managed file.
 nvm() {
     unfunction nvm
     . "$NVM_DIR/nvm.sh"

@@ -6,12 +6,11 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
-export RUNZSH=no
-export CHSH=no
-# chezmoi writes ~/.zshrc before after_ scripts run; without this the installer replaces it.
-export KEEP_ZSHRC=yes
+# A plain clone instead of tools/install.sh: raw.githubusercontent.com, where the installer lives, is
+# blocked on some corporate networks; github.com over git is not. The installer also wrote ~/.zshrc,
+# which chezmoi manages. `omz update` defaults to remote origin and branch master, as cloned here.
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    git clone --quiet --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
 fi
 
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
@@ -22,6 +21,6 @@ ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
     git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting \
         "${ZSH_CUSTOM}/plugins/zsh-syntax-highlighting"
 
-[[ -d "$HOME/.oh-my-zsh" ]] || { echo "Oh My Zsh install failed" >&2; exit 1; }
+[[ -f "$HOME/.oh-my-zsh/oh-my-zsh.sh" ]] || { echo "Oh My Zsh install failed" >&2; exit 1; }
 [[ -d "${ZSH_CUSTOM}/plugins/zsh-autosuggestions" ]] || { echo "zsh-autosuggestions clone failed" >&2; exit 1; }
 [[ -d "${ZSH_CUSTOM}/plugins/zsh-syntax-highlighting" ]] || { echo "zsh-syntax-highlighting clone failed" >&2; exit 1; }
