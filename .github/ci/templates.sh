@@ -272,6 +272,13 @@ else
         test "$(readlink "$rel/home/.local/bin/tool")" = "$rel/home/.local/opt/tool/1.0/tool-1.0/bin/tool"
     check "release helper: second call is a no-op" \
         helper "$rel/fn.sh" "install_release tool 1.0 file:///nonexistent $good tool-1.0/bin/tool"
+    # A corrupt archive whose sha256 matches must not be moved into place: the next run would see
+    # the version directory, skip the download and fail forever.
+    printf 'not gzip data' > "$rel/corrupt-1.5.gz"
+    corrupt=$(sha256sum "$rel/corrupt-1.5.gz" | cut -d' ' -f1)
+    check "release helper: an archive that fails to unpack fails" \
+        bash -c '! HOME="$1/home" bash -c "source $1/fn.sh; install_release tool 1.5 file://$1/corrupt-1.5.gz $2 tool" 2>/dev/null' _ "$rel" "$corrupt"
+    check "release helper: a failed unpack leaves no version directory" test ! -e "$rel/home/.local/opt/tool/1.5"
     two=$(sha256sum "$rel/single-2.0.gz" | cut -d' ' -f1)
     helper "$rel/fn.sh" "install_release tool 2.0 file://$rel/single-2.0.gz $two tool"
     check "release helper: a new version (.gz) replaces the link and removes the old version" \

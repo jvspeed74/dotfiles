@@ -18,9 +18,13 @@ install_release() {
         echo "$sha  $tmp/download" | sha256sum -c --quiet - >/dev/null 2>&1 \
             || { rm -rf "$tmp"; echo "install_release: $name $tag: sha256 mismatch for $url" >&2; return 1; }
         mkdir "$tmp/root"
+        # Check each unpack explicitly: an && list does not trip set -e, and a half-unpacked tree
+        # moved into place would make every later run skip the download and keep failing.
         case "$url" in
-            *.tar.gz | *.tgz) tar -xzf "$tmp/download" -C "$tmp/root" ;;
-            *.gz) gzip -dc "$tmp/download" > "$tmp/root/$1" && chmod +x "$tmp/root/$1" ;;
+            *.tar.gz | *.tgz) tar -xzf "$tmp/download" -C "$tmp/root" \
+                || { rm -rf "$tmp"; echo "install_release: $name $tag: unpack failed" >&2; return 1; } ;;
+            *.gz) { gzip -dc "$tmp/download" > "$tmp/root/$1" && chmod +x "$tmp/root/$1"; } \
+                || { rm -rf "$tmp"; echo "install_release: $name $tag: unpack failed" >&2; return 1; } ;;
             *) rm -rf "$tmp"; echo "install_release: $name: unsupported archive: $url" >&2; return 1 ;;
         esac
         mv "$tmp/root" "$dest"
