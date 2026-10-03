@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Bootstraps this repo in a fresh Ubuntu 24.04 container and runs in-container.sh's checks.
-# Usage: run-bootstrap.sh personal|corporate
+# Bootstraps this repo in a fresh Ubuntu container and runs in-container.sh's checks.
+# Usage: [UBUNTU_VERSION=26.04] run-bootstrap.sh personal|corporate   (default 24.04)
 #   corporate: the test container sits on an --internal network whose only way out is a
 #   TLS-intercepting mitmproxy, so any tool ignoring the proxy or the corporate CA fails.
 set -euo pipefail
@@ -8,9 +8,10 @@ set -euo pipefail
 mode=${1:?usage: run-bootstrap.sh personal|corporate}
 ci="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$ci/../.." && pwd)"
-image=dotfiles-bootstrap-test
+ubuntu_version=${UBUNTU_VERSION:-24.04}
+image=dotfiles-bootstrap-test:$ubuntu_version
 
-docker build --platform linux/amd64 -t "$image" "$ci"
+docker build --platform linux/amd64 --build-arg "UBUNTU_VERSION=$ubuntu_version" -t "$image" "$ci"
 common=(--rm --platform linux/amd64 -v "$repo:/src:ro" -v "$ci:/ci:ro")
 
 if [[ $mode == personal ]]; then

@@ -1,8 +1,8 @@
 # Architecture
 
-How a fresh macOS (Apple Silicon) or WSL2 Ubuntu 24.04 machine becomes a provisioned workstation,
-one layer at a time, in the order things happen. For tasks, see [GUIDE.md](GUIDE.md); for changing
-the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
+How a fresh macOS (Apple Silicon) or WSL2 Ubuntu 24.04 or 26.04 machine becomes a provisioned
+workstation, one layer at a time, in the order things happen. For tasks, see [GUIDE.md](GUIDE.md);
+for changing the code, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Layer map
 
@@ -409,7 +409,7 @@ downloads it tests.
 | Job | Proves |
 |---|---|
 | `templates` | Every template renders for both profiles; every script passes `bash -n`; key lines are present or absent per OS and profile. |
-| `bootstrap-personal` | A full bootstrap in `ubuntu:24.04` succeeds; tools resolve; `chezmoi status` is clean; a second apply changes nothing. Homebrew downloads come from a weekly cache; every install step still runs. |
+| `bootstrap-personal` | A full bootstrap succeeds in both `ubuntu:24.04` and `ubuntu:26.04`; tools resolve; `chezmoi status` is clean; a second apply changes nothing. Homebrew downloads come from a weekly cache; every install step still runs. |
 | `bootstrap-corporate` | The same through the intercepting proxy, plus CA and proxy behavior per tool, with negative controls. |
 | `docs` | Every Mermaid diagram renders; every relative link, anchor, and backticked repo path resolves. |
 | `macos` (manual) | macOS template renders; the `gh` credential helper with a minimal PATH. |

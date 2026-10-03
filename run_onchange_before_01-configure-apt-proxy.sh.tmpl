@@ -2,7 +2,8 @@
 set -euo pipefail
 
 {{ if and .is_corporate (eq .chezmoi.os "linux") -}}
-sudo -v
+# `sudo -v` prompts unless every matching sudoers rule is NOPASSWD (e.g. NOPASSWD user in %sudo).
+sudo -n true 2>/dev/null || sudo -v
 
 PROXY_URL={{ .corporate_proxy_url | quote }}
 if [[ -z "$PROXY_URL" ]]; then

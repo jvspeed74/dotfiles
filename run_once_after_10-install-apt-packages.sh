@@ -5,7 +5,8 @@ if [[ "$(uname -s)" != "Linux" ]]; then
     exit 0
 fi
 
-sudo -v
+# `sudo -v` prompts unless every matching sudoers rule is NOPASSWD (e.g. NOPASSWD user in %sudo).
+sudo -n true 2>/dev/null || sudo -v
 sudo apt-get update
 sudo apt-get install -y \
     build-essential \

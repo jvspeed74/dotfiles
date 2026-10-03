@@ -2,7 +2,8 @@
 set -euo pipefail
 
 {{ if .is_corporate -}}
-sudo -v
+# `sudo -v` prompts unless every matching sudoers rule is NOPASSWD (e.g. NOPASSWD user in %sudo).
+sudo -n true 2>/dev/null || sudo -v
 
 SRC="{{ .corporate_ca_cert_source_path }}"
 if [[ -z "$SRC" ]]; then
