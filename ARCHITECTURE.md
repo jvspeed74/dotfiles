@@ -179,9 +179,9 @@ script numbered `10`: the number orders scripts within a phase, the once/onchang
 | `run_once_after_05-install-homebrew.sh.tmpl` | Homebrew (Linux: apt prerequisites first; corporate: analytics off) | both | `brew` on PATH |
 | `run_once_after_10-install-apt-packages.sh` | build-essential, unzip, golang-go, Chrome libs, python3-venv, zsh, then `chsh` to zsh | Linux | gcc, go, unzip, zsh, `import ensurepip`, login shell |
 | `run_once_after_11-install-rustup.sh.tmpl` | rustup + cargo (`--no-modify-path`) | both | `rustc`, `cargo` |
-| `run_once_after_12-install-nvm-node.sh.tmpl` | nvm + Node LTS | both | `node --version` |
+| `run_once_after_12-install-nvm-node.sh.tmpl` | nvm (git clone, v0.40.1) + Node LTS | both | `node --version` |
 | `run_once_after_13-install-uv.sh.tmpl` | uv | both | `uv --version` |
-| `run_once_after_14-install-oh-my-zsh.sh.tmpl` | Oh My Zsh + autosuggestions + syntax highlighting (`KEEP_ZSHRC=yes`) | both | plugin directories |
+| `run_once_after_14-install-oh-my-zsh.sh.tmpl` | Oh My Zsh (git clone) + autosuggestions + syntax highlighting | both | plugin directories |
 | `run_once_after_15-install-lazygit.sh.tmpl` | lazygit (brew) | both | `lazygit --version` |
 | `run_once_after_16-install-mermaid-cli.sh.tmpl` | mermaid-cli + headless Chrome | both | `mmdc --version` |
 | `run_once_after_17-install-gh.sh.tmpl` | gh (brew) | both | `gh --version` |
@@ -223,9 +223,8 @@ mermaid-cli depend on an earlier script.
 
 - Every install ends with a check that the tool runs; a failed check exits non-zero.
 - Scripts that call `brew` evaluate `brew shellenv` themselves (layer 3, last invariant).
-- No installer may edit a chezmoi-managed file: rustup uses `--no-modify-path`, Oh My Zsh uses
-  `KEEP_ZSHRC=yes`, and nvm finds the `/nvm.sh` and `$NVM_DIR/bash_completion` strings it greps for in
-  `.zshrc`'s lazy `nvm` function, so it appends nothing.
+- No installer may edit a chezmoi-managed file: rustup uses `--no-modify-path`; nvm and Oh My Zsh
+  are cloned with git, so no installer runs.
 
 **Failure modes**
 

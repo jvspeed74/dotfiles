@@ -78,8 +78,19 @@ if [[ $os == Darwin ]]; then brew_prefix=/opt/homebrew; else brew_prefix=/home/l
 gh_path=$brew_prefix/bin/gh
 check "#3 .gitconfig helper is !$gh_path (x2)" count_is "$C/dot_gitconfig" "helper = !$gh_path auth git-credential" 2
 
-# #4: Oh My Zsh keeps the managed .zshrc.
-check "#4 after_14 sets KEEP_ZSHRC=yes" has "$C/run_once_after_14-install-oh-my-zsh.sh" "export KEEP_ZSHRC=yes"
+# #4: Oh My Zsh keeps the managed .zshrc: it is cloned with git, so no installer runs. nvm likewise.
+# raw.githubusercontent.com (the installers' host) is blocked on the corporate network; after_05
+# (Homebrew) still uses it until it moves off Homebrew.
+A12="$C/run_once_after_12-install-nvm-node.sh"
+A14="$C/run_once_after_14-install-oh-my-zsh.sh"
+check "#4 after_12 and after_14 fetch nothing from raw.githubusercontent.com" \
+    bash -c '! grep -l "https://raw\.githubusercontent\.com" "$@"' _ "$A12" "$A14"
+check "#4 after_12 clones nvm v0.40.1 with git" \
+    has "$A12" 'git clone --quiet --depth 1 --branch v0.40.1 https://github.com/nvm-sh/nvm.git "$NVM_DIR"'
+check "#4 after_12 installs Node only when none is installed" \
+    has "$A12" 'compgen -G "$NVM_DIR/versions/node/v*" >/dev/null || nvm install --lts'
+check "#4 after_14 clones Oh My Zsh with git" \
+    has "$A14" 'git clone --quiet --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"'
 
 # #5: Node and uv trust the corporate CA, corporate only.
 check "#5 corp .zshenv sets UV_SYSTEM_CERTS=1" has "$C/dot_zshenv" "export UV_SYSTEM_CERTS=1"
@@ -132,8 +143,7 @@ for dir in "$C" "$P"; do
 done
 
 # Node: the newest nvm-installed version is on PATH in every zsh (.zshenv); nvm itself loads on
-# first use (.zshrc). nvm's installer greps the profile for "/nvm.sh" and "$NVM_DIR/bash_completion"
-# and appends its own lines to the managed .zshrc if either is missing.
+# first use (.zshrc).
 for dir in "$C" "$P"; do
     p=$(basename "$dir")
     check "node: $p .zshenv exports NVM_DIR" grep -qx 'export NVM_DIR="$HOME/.nvm"' "$dir/dot_zshenv"
@@ -141,8 +151,6 @@ for dir in "$C" "$P"; do
         has "$dir/dot_zshenv" '_nvm_bins=( $NVM_DIR/versions/node/v*/bin(N/nOn) )'
     check "node: $p .zshrc does not export NVM_DIR or load nvm at startup" \
         bash -c '! grep -qE "export NVM_DIR=|# This loads nvm" "$1"' _ "$dir/dot_zshrc"
-    check "node: $p .zshrc keeps nvm installer markers (/nvm.sh, \$NVM_DIR/bash_completion)" \
-        bash -c 'grep -qF "/nvm.sh" "$1" && grep -qF "\$NVM_DIR/bash_completion" "$1"' _ "$dir/dot_zshrc"
 done
 if command -v zsh >/dev/null; then
     # Fake nvm installs: the numeric sort must pick v24.21.0 (a text sort picks v24.9.0 or v9.0.0).

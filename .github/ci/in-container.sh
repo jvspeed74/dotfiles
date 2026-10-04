@@ -105,6 +105,11 @@ check "#10 no stale ~/.local/bin/fd or ~/.local/bin/lazygit" \
 check "#8 chrome-headless-shell downloaded by after_16" \
     bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
 check "#4 no ~/.zshrc.pre-oh-my-zsh" test ! -e "$HOME/.zshrc.pre-oh-my-zsh"
+# nvm and Oh My Zsh are git clones (their installers live on raw.githubusercontent.com).
+check "#4 ~/.nvm is a git checkout of nvm v0.40.1" test "$(git -C "$HOME/.nvm" describe --tags 2>/dev/null)" = v0.40.1
+check "#4 ~/.oh-my-zsh is a git clone of ohmyzsh" \
+    test "$(git -C "$HOME/.oh-my-zsh" remote get-url origin 2>/dev/null)" = https://github.com/ohmyzsh/ohmyzsh.git
+check "#4 omz update works on the clone" zsh -i -c 'omz update >/dev/null 2>&1' </dev/null
 check "#4 ~/.zshrc matches the managed template" cmp -s <(chezmoi cat "$HOME/.zshrc") "$HOME/.zshrc"
 check "chezmoi status is clean after bootstrap" test -z "$(chezmoi status)"
 check "docs: README, GUIDE, ARCHITECTURE, CONTRIBUTING are not applied to ~" \
