@@ -169,7 +169,7 @@ and `chezmoi update` does not either.
 | Homebrew packages | `brew upgrade` |
 | apt packages (Linux) | `sudo apt update && sudo apt upgrade` |
 | Rust | `rustup update` |
-| Node (keeps global npm packages such as mermaid-cli) | `nvm install --lts --reinstall-packages-from=current` |
+| Node (keeps global npm packages such as mermaid-cli) | `nvm install --lts --reinstall-packages-from=current`; new shells use the newest installed version, and the first `nvm` in a shell loads nvm (~0.4 s) |
 | uv | `uv self update` |
 | Oh My Zsh | `omz update` |
 | Neovim plugins and language servers | `:Lazy update`, then `:MasonUpdate` |

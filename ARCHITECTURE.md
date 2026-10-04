@@ -224,7 +224,8 @@ mermaid-cli depend on an earlier script.
 - Every install ends with a check that the tool runs; a failed check exits non-zero.
 - Scripts that call `brew` evaluate `brew shellenv` themselves (layer 3, last invariant).
 - No installer may edit a chezmoi-managed file: rustup uses `--no-modify-path`, Oh My Zsh uses
-  `KEEP_ZSHRC=yes`, and nvm detects the existing `nvm.sh` line in `.zshrc`.
+  `KEEP_ZSHRC=yes`, and nvm finds the `/nvm.sh` and `$NVM_DIR/bash_completion` strings it greps for in
+  `.zshrc`'s lazy `nvm` function, so it appends nothing.
 
 **Failure modes**
 
@@ -242,8 +243,8 @@ mermaid-cli depend on an earlier script.
 
 | File | Contents | Read by |
 |---|---|---|
-| `dot_zshenv.tmpl` → `~/.zshenv` | `_dotfiles_path_prepend` and `typeset -U path PATH`, corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, then `~/.local/bin` ahead of Homebrew and system dirs | Every zsh |
-| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` and `/usr/local/bin` if missing (unconditionally in macOS login shells, after `path_helper`), nvm, Oh My Zsh | Interactive zsh only |
+| `dot_zshenv.tmpl` → `~/.zshenv` | `_dotfiles_path_prepend` and `typeset -U path PATH`, corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, the newest nvm Node bin (`NVM_DIR`), then `~/.local/bin` ahead of Homebrew and system dirs | Every zsh |
+| `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` and `/usr/local/bin` if missing (unconditionally in macOS login shells, after `path_helper`), the `nvm` command (loaded on first use), Oh My Zsh | Interactive zsh only |
 
 **Flow**
 
@@ -268,8 +269,12 @@ interactive shells.
   before Homebrew is on PATH and when a tool is not installed.
 - `~/.local/bin` precedes Homebrew and the system directories in every fresh zsh: `.zshenv` adds
   it last, and `.zshrc` re-adds it after macOS `path_helper`. `typeset -U path PATH` keeps each
-  entry once. In interactive shells nvm's node bin precedes it. It is the only user bin directory;
-  `~/bin` is not on PATH.
+  entry once. It also precedes the nvm Node bin. It is the only user bin directory; `~/bin` is not
+  on PATH.
+- Node comes from `.zshenv`: the newest installed nvm version (numeric sort), in every zsh. New
+  shells use it, not nvm's `default` alias; a shell that already has an nvm Node on PATH keeps it,
+  so children inherit a parent's `nvm use`. `.zshrc` defines `nvm` as a function that loads nvm on
+  first call, so shell startup does not pay for it.
 - PATH additions in `.zshenv` and `.zshrc` go through `_dotfiles_path_prepend`, which skips
   directories already on PATH, and Homebrew's `shellenv` is skipped when Homebrew is already on
   PATH. A nested zsh therefore keeps its parent's order: an activated venv stays first. The only
@@ -281,6 +286,7 @@ interactive shells.
 |---|---|---|
 | A tool works in a terminal but not in `wsl.exe <cmd>` | Its setup is in `.zshrc` | Move it to `.zshenv` ([CONTRIBUTING rules](CONTRIBUTING.md#rules-that-keep-machines-working)) |
 | A nested shell (`:!cmd` in Neovim, `zsh` inside an activated venv) finds `~/.local/bin` or Homebrew tools before the venv's | An rc file prepended unconditionally | `_dotfiles_path_prepend`; CI checks both nested cases |
+| `nvm alias default` has no effect in new shells | `.zshenv` puts the newest installed Node on PATH | `nvm use <version>` per shell, or `nvm uninstall` the newer version |
 | `/etc/environment` settings are ignored | WSL starts shells without a PAM session ([microsoft/WSL#9213](https://github.com/microsoft/WSL/issues/9213)) | Not used; `.zshenv` instead |
 
 ## 6. Corporate network

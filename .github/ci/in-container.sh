@@ -55,7 +55,7 @@ check "path: chezmoi, uv, uvx resolve in non-interactive zsh from a clean env" \
     clean_zsh 'command -v chezmoi uv uvx >/dev/null'
 check "path: non-interactive zsh PATH starts with ~/.local/bin" \
     test "$(clean_zsh 'print -r -- $path[1]' 2>/dev/null)" = "$HOME/.local/bin"
-# Interactive: nvm prepends its node bin when .zshrc loads it, so check order, not position.
+# Interactive: .zshrc may prepend more (e.g. Homebrew on macOS), so check order, not position.
 clean_zsh_i() { env -i HOME="$HOME" USER="$USER" ${2:+PATH="$2"} zsh -i -c "$1" </dev/null 2>/dev/null; }
 check "path: interactive zsh PATH has ~/.local/bin before Homebrew" \
     clean_zsh_i '(( path[(i)$HOME/.local/bin] < path[(i)/home/linuxbrew/.linuxbrew/bin] && path[(i)/home/linuxbrew/.linuxbrew/bin] <= $#path ))'
@@ -72,6 +72,28 @@ check "path: nested interactive zsh keeps the parent's first entry (venv)" \
 for tool in brew gh rg fd lazygit uv node mmdc; do
     check "tool resolves in interactive zsh: $tool" zsh -i -c "command -v $tool >/dev/null" </dev/null
 done
+
+# Node: .zshenv puts the newest nvm Node on PATH for every zsh; .zshrc loads nvm only on first use.
+check "node: node, npm, npx, mmdc resolve in non-interactive zsh from a clean env" \
+    clean_zsh 'command -v node npm npx mmdc >/dev/null'
+node_ni=$(clean_zsh 'command -v node' 2>/dev/null)
+check "node: non-interactive node is nvm's ($node_ni)" \
+    bash -c '[[ $1 == "$HOME"/.nvm/versions/node/v*/bin/node ]]' _ "$node_ni"
+check "node: interactive and non-interactive zsh resolve the same node" \
+    test "$(clean_zsh_i 'command -v node' | tail -n1)" = "$node_ni"
+check "node: interactive zsh does not load nvm at startup" \
+    clean_zsh_i '! typeset -f nvm_ls_current >/dev/null'
+check "node: nvm loads on first use and reports the PATH node" \
+    test "$(clean_zsh_i 'nvm current' | tail -n1)" = "$(clean_zsh 'node --version')"
+# Real nvm: install an older major beside the LTS. New shells keep the newest; a child zsh started
+# after `nvm use <older>` keeps the older one (.zshenv must not re-prepend the newest).
+node_new=$(clean_zsh 'node --version')
+node_major=${node_new#v}; node_old=$(( ${node_major%%.*} - 2 ))
+check "node: nvm installs an older Node ($node_old) beside $node_new" clean_zsh_i "nvm install $node_old >/dev/null 2>&1"
+check "node: a fresh zsh still uses the newest Node ($node_new)" test "$(clean_zsh 'node --version')" = "$node_new"
+node_child=$(clean_zsh_i "nvm use $node_old >/dev/null && zsh -c 'node --version'" | tail -n1)
+check "node: child zsh -c keeps the parent's \`nvm use $node_old\` ($node_child)" \
+    bash -c '[[ $1 == "v$2."* ]]' _ "$node_child" "$node_old"
 brew_bin=/home/linuxbrew/.linuxbrew/bin
 for tool in gh rg fd lazygit; do
     check "#10 $tool resolves to Homebrew ($brew_bin)" \
