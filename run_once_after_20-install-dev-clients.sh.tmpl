@@ -5,13 +5,30 @@ set -euo pipefail
 export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
+# uv ships its own root CAs; chezmoi runs this under bash, so ~/.zshenv's setting is not inherited.
+export UV_SYSTEM_CERTS=1
 {{ end -}}
 
+# .NET SDK for the lang.dotnet extra (csharpier and fantomas are dotnet tools); psql for Postgres in
+# vim-dadbod; Snowflake CLI (snow).
+{{ if eq .chezmoi.os "darwin" -}}
 eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
-# .NET SDK for the lang.dotnet extra (csharpier and fantomas are dotnet tools); psql (libpq, keg-only,
-# put on PATH by .zshenv) for Postgres in vim-dadbod; Snowflake CLI (snow).
+# libpq is keg-only: .zshenv puts its bin on PATH.
 brew install dotnet libpq snowflake-cli
+psql="{{ template "brew-prefix" . }}/opt/libpq/bin/psql"
+{{ else -}}
+# Ubuntu's own packages (an internal apt mirror on the corporate network); uv for snow, from PyPI.
+sudo -n true 2>/dev/null || sudo -v
+sudo apt-get update
+# Non-interactive, keeping existing config files: a dependency upgrade must not stop at a dpkg
+# conffile prompt.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold \
+    dotnet-sdk-10.0 postgresql-client
+export PATH="$HOME/.local/bin:$PATH"
+uv tool install "snowflake-cli=={{ .linuxTools.snowflakeCli.version }}"
+psql=/usr/bin/psql
+{{ end -}}
 
 dotnet --version >/dev/null || { echo "dotnet did not run" >&2; exit 1; }
-"{{ template "brew-prefix" . }}/opt/libpq/bin/psql" --version >/dev/null || { echo "psql did not run" >&2; exit 1; }
+"$psql" --version >/dev/null || { echo "psql did not run" >&2; exit 1; }
 snow --version >/dev/null || { echo "snow did not run" >&2; exit 1; }

@@ -6,15 +6,22 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
-eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 # LazyVim requirements (lazyvim.org): Neovim >= 0.11.2, tree-sitter CLI, fzf. git, curl, a C
 # compiler, ripgrep, fd, and lazygit come from earlier scripts.
-brew install neovim tree-sitter-cli fzf
 {{ if eq .chezmoi.os "darwin" -}}
+eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
+brew install neovim tree-sitter-cli fzf
 # Nerd Font for LazyVim's icons; select it in the terminal's settings. Under WSL the font must be
 # installed on Windows instead (see README).
 brew install --cask font-jetbrains-mono-nerd-font \
     || echo "JetBrainsMono Nerd Font cask skipped (already installed outside Homebrew?); LazyVim works without it." >&2
+{{ else -}}
+# Ubuntu's apt Neovim is too old for LazyVim (0.9.5 on 24.04), so all three come from releases.
+{{ template "install-release" . }}
+{{ template "install-release-call" (dict "name" "nvim" "tool" .linuxTools.nvim) }}
+{{ template "install-release-call" (dict "name" "tree-sitter" "tool" .linuxTools.treeSitter) }}
+{{ template "install-release-call" (dict "name" "fzf" "tool" .linuxTools.fzf) }}
+export PATH="$HOME/.local/bin:$PATH"
 {{ end -}}
 
 for tool in nvim tree-sitter fzf; do

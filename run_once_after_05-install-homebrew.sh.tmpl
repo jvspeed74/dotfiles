@@ -1,5 +1,8 @@
+{{ if eq .chezmoi.os "darwin" -}}
 #!/usr/bin/env bash
 set -euo pipefail
+# macOS only: renders empty on Linux, so chezmoi skips it. Linux tools come from GitHub releases
+# (.chezmoidata/linux-tools.toml) and apt; Homebrew's hosts are blocked on the corporate network.
 
 {{ if .is_corporate -}}
 export HTTP_PROXY={{ .corporate_proxy_url | quote }}
@@ -8,26 +11,13 @@ export HOMEBREW_NO_ANALYTICS=1
 {{ end -}}
 
 brew_bin="{{ template "brew-prefix" . }}/bin/brew"
-
-{{ if eq .chezmoi.os "linux" -}}
-# Homebrew's documented Linux prerequisites.
-# `sudo -v` prompts unless credentials are cached or every matching sudoers rule is NOPASSWD.
-sudo -n true 2>/dev/null || sudo -v
-sudo apt-get update
-sudo apt-get install -y build-essential procps curl file git
-
-if [[ ! -x "$brew_bin" ]]; then
-    # NONINTERACTIVE skips the "press RETURN" prompt; sudo access is already established above.
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
-{{ else -}}
 if [[ ! -x "$brew_bin" ]]; then
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
-{{ end -}}
 eval "$("$brew_bin" shellenv)"
 command -v brew >/dev/null || { echo "Homebrew install failed" >&2; exit 1; }
 {{ if .is_corporate -}}
 # Persisted in Homebrew's own config, so it also covers brew runs from shells and other scripts.
 brew analytics off
+{{ end -}}
 {{ end -}}

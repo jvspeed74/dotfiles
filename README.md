@@ -27,12 +27,12 @@ first; the one-liner needs the proxy and CA before any of this repo runs.
 | Area | Contents |
 |---|---|
 | Shell | zsh as login shell, Oh My Zsh with autosuggestions and syntax highlighting |
-| CLI tools | Homebrew, gh, lazygit, ripgrep, fd, fzf |
+| CLI tools | gh, lazygit, ripgrep, fd, fzf: Homebrew on macOS, pinned GitHub releases on Linux |
 | Languages | Rust (rustup), Node LTS (nvm), Python tooling (uv), .NET SDK, Go (Linux) |
 | Editor | Neovim with LazyVim and 12 Extras, JetBrainsMono Nerd Font on macOS |
 | Data | `psql`, Snowflake CLI (`snow`), dialect-aware SQL lint and format |
 | Diagrams | mermaid-cli |
-| Corporate | Proxy and CA trust for apt, git, npm, cargo, Node, uv, Homebrew; telemetry off |
+| Corporate | Proxy and CA trust for apt (internal mirror direct), git, npm, cargo, Node, uv, Homebrew (macOS); telemetry off; nothing needs `raw.githubusercontent.com` or `ghcr.io` on Linux |
 
 Per-script details: [ARCHITECTURE layer 4](ARCHITECTURE.md#4-provisioning-scripts).
 

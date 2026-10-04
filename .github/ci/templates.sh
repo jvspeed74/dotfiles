@@ -71,20 +71,45 @@ check "#2 .zshenv cargo line, both profiles" \
 check "#2 corp .zshrc no longer exports the proxy" lacks "$C/dot_zshrc" "HTTP_PROXY"
 check "#2 after_11 passes --no-modify-path" has "$C/run_once_after_11-install-rustup.sh" "--no-modify-path"
 
+# apt proxy: hosts in apt's sources that resolve to a private address (an internal mirror) go
+# DIRECT; public hosts stay on the proxy. Private hosts are IP literals so no DNS is involved.
+if [[ $os == Linux ]]; then
+    apt_dir="$work/apt"
+    mkdir -p "$apt_dir/sources.list.d"
+    printf '%s\n' 'deb http://archive.ubuntu.com/ubuntu noble main' '# deb http://10.9.9.9/commented noble main' \
+        > "$apt_dir/sources.list"
+    printf '%s\n' 'Types: deb' 'URIs: https://10.20.30.40:8443/debian/' 'Suites: noble' \
+        > "$apt_dir/sources.list.d/internal.sources"
+    printf '%s\n' 'deb [arch=amd64 signed-by=/k.gpg] https://user:pw@192.168.5.6/repo stable main' \
+        'deb https://download.docker.com/linux/ubuntu noble stable' \
+        'deb http://no-such-host.invalid/repo stable main' > "$apt_dir/sources.list.d/other.list"
+    # The last host apt_direct_hosts checks (sorted) is not private, so a loop that ends on a non-match
+    # must still succeed under set -e/pipefail.
+    direct=$(APT_PROXY_FUNCTIONS_ONLY=1 bash -c \
+        'source "$1" && apt_direct_hosts "$2"' _ "$C/run_onchange_before_01-configure-apt-proxy.sh" "$apt_dir" | paste -sd, -)
+    check "apt proxy: only private-address source hosts go DIRECT ($direct)" test "$direct" = "10.20.30.40,192.168.5.6"
+    check "apt proxy: DIRECT entries are written per host" \
+        has "$C/run_onchange_before_01-configure-apt-proxy.sh" 'echo "Acquire::https::Proxy::${host} \"DIRECT\";"'
+fi
+
 # #3: gh credential helper, per-OS absolute path.
 check "#3 .gitconfig starts with [credential" first_line "$C/dot_gitconfig" '[credential "https://github.com"]'
-# #10 moved gh to Homebrew on Linux too, so the helper path follows the Homebrew prefix.
-if [[ $os == Darwin ]]; then brew_prefix=/opt/homebrew; else brew_prefix=/home/linuxbrew/.linuxbrew; fi
-gh_path=$brew_prefix/bin/gh
+# gh by absolute path: Homebrew's on macOS, the release link in ~/.local/bin on Linux (no Homebrew).
+if [[ $os == Darwin ]]; then brew_prefix=/opt/homebrew; gh_path=$brew_prefix/bin/gh; else gh_path=$HOME/.local/bin/gh; fi
 check "#3 .gitconfig helper is !$gh_path (x2)" count_is "$C/dot_gitconfig" "helper = !$gh_path auth git-credential" 2
 
 # #4: Oh My Zsh keeps the managed .zshrc: it is cloned with git, so no installer runs. nvm likewise.
-# raw.githubusercontent.com (the installers' host) is blocked on the corporate network; after_05
-# (Homebrew) still uses it until it moves off Homebrew.
+# raw.githubusercontent.com (installer scripts) and ghcr.io (Homebrew packages) are blocked on the
+# corporate network. No Linux script may use them; on macOS only after_05 (Homebrew) does.
 A12="$C/run_once_after_12-install-nvm-node.sh"
 A14="$C/run_once_after_14-install-oh-my-zsh.sh"
-check "#4 after_12 and after_14 fetch nothing from raw.githubusercontent.com" \
-    bash -c '! grep -l "https://raw\.githubusercontent\.com" "$@"' _ "$A12" "$A14"
+if [[ $os == Linux ]]; then
+    check "#4 no rendered Linux script fetches from raw.githubusercontent.com or ghcr.io" \
+        bash -c '! grep -lE "https://(raw\.githubusercontent\.com|ghcr\.io)" "$@"' _ "$C"/run_*.sh "$P"/run_*.sh
+else
+    check "#4 after_12 and after_14 fetch nothing from raw.githubusercontent.com" \
+        bash -c '! grep -l "https://raw\.githubusercontent\.com" "$@"' _ "$A12" "$A14"
+fi
 check "#4 after_12 clones nvm v0.40.1 with git" \
     has "$A12" 'git clone --quiet --depth 1 --branch v0.40.1 https://github.com/nvm-sh/nvm.git "$NVM_DIR"'
 check "#4 after_12 installs Node only when none is installed" \
@@ -105,25 +130,25 @@ fi
 check "#5 corp .zshenv: $node_ca" has "$C/dot_zshenv" "$node_ca"
 check "#5 corp after_16: $node_ca" has "$C/run_once_after_16-install-mermaid-cli.sh" "$node_ca"
 
-# #6 / #10: guarded brew shellenv with the per-OS prefix: in .zshrc on macOS (before the PATH lines),
-# in .zshenv on Linux (so non-interactive shells get it), and in every brew script. The rc files skip
-# shellenv when Homebrew is already on PATH (nested shells), except macOS login shells (path_helper).
-shellenv="eval \"\$($brew_prefix/bin/brew shellenv)\""
-on_path="(( ! \${path[(Ie)$brew_prefix/bin]} ))"
+# #6 / #10: macOS: guarded brew shellenv in .zshrc (before the PATH lines) and in every brew script;
+# .zshrc skips it when Homebrew is already on PATH (nested shells), except in login shells
+# (path_helper). Linux has no Homebrew at all.
 if [[ $os == Darwin ]]; then
-    guarded="[[ -x $brew_prefix/bin/brew ]] && { [[ -o login ]] || $on_path } && $shellenv"
-else
-    guarded="[[ -x $brew_prefix/bin/brew ]] && $on_path && $shellenv"
-fi
-if [[ $os == Darwin ]]; then rc_with=dot_zshrc rc_without=dot_zshenv; else rc_with=dot_zshenv rc_without=dot_zshrc; fi
-for dir in "$C" "$P"; do
-    check "#6/#10 $(basename "$dir") $rc_with has guarded brew shellenv ($brew_prefix)" has "$dir/$rc_with" "$guarded"
-    check "#6/#10 $(basename "$dir") $rc_without has no brew shellenv" lacks "$dir/$rc_without" "brew shellenv"
-done
-if [[ $os == Darwin ]]; then
+    shellenv="eval \"\$($brew_prefix/bin/brew shellenv)\""
+    guarded="[[ -x $brew_prefix/bin/brew ]] && { [[ -o login ]] || (( ! \${path[(Ie)$brew_prefix/bin]} )) } && $shellenv"
+    for dir in "$C" "$P"; do
+        check "#6/#10 $(basename "$dir") dot_zshrc has guarded brew shellenv ($brew_prefix)" has "$dir/dot_zshrc" "$guarded"
+        check "#6/#10 $(basename "$dir") dot_zshenv has no brew shellenv" lacks "$dir/dot_zshenv" "brew shellenv"
+    done
     check "#6/#10 brew shellenv precedes the login-shell PATH prepend" \
         bash -c "[[ \$(grep -nF 'brew shellenv' '$C/dot_zshrc' | cut -d: -f1) -lt \$(grep -nF '[[ -o login ]] && path=(' '$C/dot_zshrc' | cut -d: -f1) ]]"
 else
+    for dir in "$C" "$P"; do
+        check "linux: $(basename "$dir") .zshenv and .zshrc have no brew shellenv" \
+            bash -c '! grep -l "brew shellenv" "$1" "$2"' _ "$dir/dot_zshenv" "$dir/dot_zshrc"
+    done
+    check "linux: no rendered file refers to Homebrew (/home/linuxbrew, brew install, brew shellenv)" \
+        bash -c '! grep -rlE "/home/linuxbrew|brew (install|shellenv)" "$1" "$2"' _ "$C" "$P"
     check "#10 Linux .zshrc starts at the PATH comment" first_line "$C/dot_zshrc" "# If you come from bash you might have to change your \$PATH."
 fi
 
@@ -177,45 +202,122 @@ if command -v zsh >/dev/null; then
     check "node: login zsh keeps the newest nvm bin on PATH (after path_helper on macOS)" \
         grep -qxF "$newest" <<<"$(fake_zsh -lc 'print -l $path')"
 fi
-for script in run_once_after_15-install-lazygit.sh run_once_after_17-install-gh.sh run_once_after_18-install-ripgrep-fd.sh; do
-    check "#10 $script evals brew shellenv ($brew_prefix)" has "$C/$script" "$shellenv"
-done
-check "#10 after_05 targets $brew_prefix/bin/brew" has "$C/run_once_after_05-install-homebrew.sh" "brew_bin=\"$brew_prefix/bin/brew\""
-check "#10 after_15 installs lazygit via brew, no Go build" \
-    bash -c "grep -qF 'brew install lazygit' '$C/run_once_after_15-install-lazygit.sh' && ! grep -q 'go build' '$C/run_once_after_15-install-lazygit.sh'"
-check "#10 after_17 installs gh via brew" has "$C/run_once_after_17-install-gh.sh" "brew install gh"
-check "#10 after_18 installs ripgrep and fd via brew" has "$C/run_once_after_18-install-ripgrep-fd.sh" "brew install ripgrep fd"
-check "#10 after_10 no longer installs ripgrep, fd-find, or gh" \
+check "#10 after_10 installs non-interactively, keeping conffiles (no dpkg prompt)" \
+    has "$C/run_once_after_10-install-apt-packages.sh" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold \\"
+check "#10 after_10 does not install ripgrep, fd-find, or gh" \
     bash -c "! grep -qE '^ +(ripgrep|fd-find|gh)( |\\\\|\$)' '$C/run_once_after_10-install-apt-packages.sh'"
-check "#10 corp after_05 disables Homebrew analytics" \
-    bash -c "grep -qx 'export HOMEBREW_NO_ANALYTICS=1' '$C/run_once_after_05-install-homebrew.sh' && grep -qx 'brew analytics off' '$C/run_once_after_05-install-homebrew.sh'"
 check "#10 personal after_05 leaves analytics alone" lacks "$P/run_once_after_05-install-homebrew.sh" "analytics"
-if [[ $os == Linux ]]; then
-    check "#10 Linux after_05 installs Homebrew prerequisites, non-interactive" \
-        bash -c "grep -qF 'apt-get install -y build-essential procps curl file git' '$C/run_once_after_05-install-homebrew.sh' && grep -qF 'NONINTERACTIVE=1' '$C/run_once_after_05-install-homebrew.sh'"
+if [[ $os == Darwin ]]; then
+    for script in run_once_after_15-install-lazygit.sh run_once_after_17-install-gh.sh run_once_after_18-install-ripgrep-fd.sh; do
+        check "#10 $script evals brew shellenv ($brew_prefix)" has "$C/$script" "$shellenv"
+    done
+    check "#10 after_05 targets $brew_prefix/bin/brew" has "$C/run_once_after_05-install-homebrew.sh" "brew_bin=\"$brew_prefix/bin/brew\""
+    check "#10 after_15 installs lazygit via brew" has "$C/run_once_after_15-install-lazygit.sh" "brew install lazygit"
+    check "#10 after_17 installs gh via brew" has "$C/run_once_after_17-install-gh.sh" "brew install gh"
+    check "#10 after_18 installs ripgrep and fd via brew" has "$C/run_once_after_18-install-ripgrep-fd.sh" "brew install ripgrep fd"
+    check "#10 corp after_05 disables Homebrew analytics" \
+        bash -c "grep -qx 'export HOMEBREW_NO_ANALYTICS=1' '$C/run_once_after_05-install-homebrew.sh' && grep -qx 'brew analytics off' '$C/run_once_after_05-install-homebrew.sh'"
+else
+    # Linux: after_05 renders to nothing, so chezmoi skips it.
+    check "linux: after_05 renders empty (Homebrew is macOS-only)" \
+        bash -c '! grep -q "[^[:space:]]" "$1"' _ "$C/run_once_after_05-install-homebrew.sh"
+
+    # Pinned GitHub releases (.chezmoidata/linux-tools.toml): every release tool has a 64-hex sha256,
+    # and its script renders the exact pinned call. tool_field reads the data file (no python in CI).
+    data="$repo/.chezmoidata/linux-tools.toml"
+    tool_field() { awk -v t="[linuxTools.$1]" -v k="$2" '
+        $0 == t { in_t = 1; next } /^\[/ { in_t = 0 }
+        in_t && $1 == k { sub(/^[^=]*= */, ""); gsub(/"/, ""); print; exit }' "$data"; }
+    release_tools=(nvim:nvim:run_once_after_19-install-neovim-lazyvim.sh
+                   tree-sitter:treeSitter:run_once_after_19-install-neovim-lazyvim.sh
+                   fzf:fzf:run_once_after_19-install-neovim-lazyvim.sh
+                   ripgrep:ripgrep:run_once_after_18-install-ripgrep-fd.sh
+                   fd:fd:run_once_after_18-install-ripgrep-fd.sh
+                   lazygit:lazygit:run_once_after_15-install-lazygit.sh
+                   gh:gh:run_once_after_17-install-gh.sh)
+    check "release: linux-tools.toml has exactly ${#release_tools[@]} release tools" \
+        test "$(grep -cE '^sha256 = "' "$data")" = "${#release_tools[@]}"
+    for entry in "${release_tools[@]}"; do
+        IFS=: read -r name key script <<<"$entry"
+        sha=$(tool_field "$key" sha256); tag=$(tool_field "$key" tag)
+        url="https://github.com/$(tool_field "$key" repo)/releases/download/$tag/$(tool_field "$key" asset)"
+        check "release: $name sha256 is 64 hex" bash -c '[[ $1 =~ ^[0-9a-f]{64}$ ]]' _ "$sha"
+        for dir in "$C" "$P"; do
+            check "release: $(basename "$dir") $script installs $name $tag" \
+                has "$dir/$script" "install_release $name $tag \"$url\" $sha "
+        done
+    done
+    for script in run_once_after_15-install-lazygit.sh run_once_after_17-install-gh.sh \
+                  run_once_after_18-install-ripgrep-fd.sh run_once_after_19-install-neovim-lazyvim.sh; do
+        check "release: $script defines install_release once" count_is "$C/$script" "install_release() {" 1
+    done
+
+    # install_release, offline: a local .tar.gz and .gz served over file://.
+    rel="$work/release"
+    mkdir -p "$rel/src/tool-1.0/bin" "$rel/home"
+    printf '#!/bin/sh\necho one\n' > "$rel/src/tool-1.0/bin/tool"; chmod +x "$rel/src/tool-1.0/bin/tool"
+    tar -czf "$rel/tool-1.0.tar.gz" -C "$rel/src" tool-1.0
+    printf '#!/bin/sh\necho two\n' > "$rel/single"; gzip -c "$rel/single" > "$rel/single-2.0.gz"
+    good=$(sha256sum "$rel/tool-1.0.tar.gz" | cut -d' ' -f1)
+    bad=0000000000000000000000000000000000000000000000000000000000000000
+    helper() { HOME="$rel/home" bash -c "set -euo pipefail; source '$1'; ${2}" 2>/dev/null; }
+    # The function body as rendered into a Linux script, alone in a file.
+    sed -n '/^install_release() {/,/^}/p' "$C/run_once_after_15-install-lazygit.sh" > "$rel/fn.sh"
+    check "release helper: wrong sha256 fails" \
+        bash -c '! HOME="$1/home" bash -c "source $1/fn.sh; install_release tool 1.0 file://$1/tool-1.0.tar.gz $2 tool-1.0/bin/tool" 2>/dev/null' _ "$rel" "$bad"
+    check "release helper: wrong sha256 installs and links nothing" \
+        test ! -e "$rel/home/.local/opt/tool/1.0" -a ! -e "$rel/home/.local/bin/tool"
+    helper "$rel/fn.sh" "install_release tool 1.0 file://$rel/tool-1.0.tar.gz $good tool-1.0/bin/tool"
+    check "release helper: right sha256 installs and links" \
+        test "$(readlink "$rel/home/.local/bin/tool")" = "$rel/home/.local/opt/tool/1.0/tool-1.0/bin/tool"
+    check "release helper: second call is a no-op" \
+        helper "$rel/fn.sh" "install_release tool 1.0 file:///nonexistent $good tool-1.0/bin/tool"
+    # A corrupt archive whose sha256 matches must not be moved into place: the next run would see
+    # the version directory, skip the download and fail forever.
+    printf 'not gzip data' > "$rel/corrupt-1.5.gz"
+    corrupt=$(sha256sum "$rel/corrupt-1.5.gz" | cut -d' ' -f1)
+    check "release helper: an archive that fails to unpack fails" \
+        bash -c '! HOME="$1/home" bash -c "source $1/fn.sh; install_release tool 1.5 file://$1/corrupt-1.5.gz $2 tool" 2>/dev/null' _ "$rel" "$corrupt"
+    check "release helper: a failed unpack leaves no version directory" test ! -e "$rel/home/.local/opt/tool/1.5"
+    two=$(sha256sum "$rel/single-2.0.gz" | cut -d' ' -f1)
+    helper "$rel/fn.sh" "install_release tool 2.0 file://$rel/single-2.0.gz $two tool"
+    check "release helper: a new version (.gz) replaces the link and removes the old version" \
+        bash -c '[[ $("$1/home/.local/bin/tool") == two && ! -e "$1/home/.local/opt/tool/1.0" ]]' _ "$rel"
 fi
 
 # nvim: Neovim + LazyVim bootstrap (after_19), dev clients (after_20), shell env, managed nvim files.
 A19="$C/run_once_after_19-install-neovim-lazyvim.sh"
 A20="$C/run_once_after_20-install-dev-clients.sh"
-check "nvim: after_19 evals brew shellenv" has "$A19" "$shellenv"
-check "nvim: after_19 installs neovim, tree-sitter-cli, fzf" has "$A19" "brew install neovim tree-sitter-cli fzf"
 if [[ $os == Darwin ]]; then
+    check "nvim: after_19 evals brew shellenv" has "$A19" "$shellenv"
+    check "nvim: after_19 installs neovim, tree-sitter-cli, fzf" has "$A19" "brew install neovim tree-sitter-cli fzf"
     check "nvim: after_19 installs the JetBrainsMono Nerd Font cask (macOS)" has "$A19" "brew install --cask font-jetbrains-mono-nerd-font"
     check "nvim: font cask failure is non-fatal (macOS)" has "$A19" "|| echo \"JetBrainsMono Nerd Font cask skipped"
+    check "nvim: after_20 evals brew shellenv" has "$A20" "$shellenv"
+    check "nvim: after_20 installs dotnet, libpq, snowflake-cli" has "$A20" "brew install dotnet libpq snowflake-cli"
 else
     check "nvim: after_19 has no font cask on Linux" lacks "$A19" "font-jetbrains-mono-nerd-font"
+    check "nvim: after_20 installs dotnet and psql from apt" bash -c 'grep -qF "apt-get install -y -o Dpkg::Options::=--force-confold \\" "$1" && grep -qxF "    dotnet-sdk-10.0 postgresql-client" "$1"' _ "$A20"
+    check "nvim: after_20 installs the pinned Snowflake CLI with uv" \
+        has "$A20" "uv tool install \"snowflake-cli==$(tool_field snowflakeCli version)\""
+    check "nvim: corp after_20 exports UV_SYSTEM_CERTS (bash does not read .zshenv)" has "$A20" "export UV_SYSTEM_CERTS=1"
 fi
-check "nvim: after_20 evals brew shellenv" has "$A20" "$shellenv"
-check "nvim: after_20 installs dotnet, libpq, snowflake-cli" has "$A20" "brew install dotnet libpq snowflake-cli"
 for dir in "$C" "$P"; do
     p=$(basename "$dir")
-    check "nvim: $p .zshenv sets EDITOR/VISUAL guarded" has "$dir/dot_zshenv" \
-        "[[ -x $brew_prefix/bin/nvim ]] && export EDITOR=$brew_prefix/bin/nvim VISUAL=$brew_prefix/bin/nvim"
-    check "nvim: $p .zshenv sets DOTNET_ROOT guarded" has "$dir/dot_zshenv" \
-        "[[ -d $brew_prefix/opt/dotnet/libexec ]] && export DOTNET_ROOT=$brew_prefix/opt/dotnet/libexec"
-    check "nvim: $p .zshenv adds keg-only libpq to PATH" has "$dir/dot_zshenv" \
-        "[[ -d $brew_prefix/opt/libpq/bin ]] && _dotfiles_path_prepend $brew_prefix/opt/libpq/bin"
+    if [[ $os == Darwin ]]; then
+        check "nvim: $p .zshenv sets EDITOR/VISUAL guarded" has "$dir/dot_zshenv" \
+            "[[ -x $brew_prefix/bin/nvim ]] && export EDITOR=$brew_prefix/bin/nvim VISUAL=$brew_prefix/bin/nvim"
+        check "nvim: $p .zshenv sets DOTNET_ROOT guarded" has "$dir/dot_zshenv" \
+            "[[ -d $brew_prefix/opt/dotnet/libexec ]] && export DOTNET_ROOT=$brew_prefix/opt/dotnet/libexec"
+        check "nvim: $p .zshenv adds keg-only libpq to PATH" has "$dir/dot_zshenv" \
+            "[[ -d $brew_prefix/opt/libpq/bin ]] && _dotfiles_path_prepend $brew_prefix/opt/libpq/bin"
+    else
+        check "nvim: $p .zshenv sets EDITOR/VISUAL to the release nvim" has "$dir/dot_zshenv" \
+            '[[ -x "$HOME/.local/bin/nvim" ]] && export EDITOR="$HOME/.local/bin/nvim" VISUAL="$HOME/.local/bin/nvim"'
+        check "nvim: $p .zshenv sets DOTNET_ROOT to apt's dotnet" has "$dir/dot_zshenv" \
+            '[[ -d /usr/lib/dotnet ]] && export DOTNET_ROOT=/usr/lib/dotnet'
+        check "nvim: $p .zshenv has no libpq PATH line (apt psql is in /usr/bin)" lacks "$dir/dot_zshenv" "opt/libpq/bin"
+    fi
     check "nvim: $p .zshrc no longer has the commented EDITOR block" lacks "$dir/dot_zshrc" "EDITOR"
 done
 check "nvim: no PIP_CERT (Ubuntu's pip trusts the system store)" \

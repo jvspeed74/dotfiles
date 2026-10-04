@@ -8,7 +8,9 @@ fi
 # `sudo -v` prompts unless credentials are cached or every matching sudoers rule is NOPASSWD.
 sudo -n true 2>/dev/null || sudo -v
 sudo apt-get update
-sudo apt-get install -y \
+# Non-interactive, keeping existing config files: a dependency upgrade must not stop at a dpkg
+# conffile prompt.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::=--force-confold \
     build-essential \
     unzip \
     golang-go \
@@ -17,12 +19,6 @@ sudo apt-get install -y \
     libasound2t64 \
     python3-venv \
     zsh
-
-# rg, fd, and gh now come from Homebrew (after_17, after_18). Remove the fd -> fdfind symlink an
-# earlier version created; ~/.local/bin precedes Homebrew in PATH and would shadow brew's fd.
-if [[ -L "$HOME/.local/bin/fd" && "$(readlink "$HOME/.local/bin/fd")" == *fdfind ]]; then
-    rm "$HOME/.local/bin/fd"
-fi
 
 # Ubuntu defaults to bash; without this, ~/.zshenv and ~/.zshrc are never read.
 zsh_path="$(command -v zsh)"

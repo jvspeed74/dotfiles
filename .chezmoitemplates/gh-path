@@ -1,0 +1,2 @@
+{{- /* Absolute path of gh per OS: Homebrew on macOS, the release link in ~/.local/bin on Linux. */ -}}
+{{- if eq .chezmoi.os "darwin" -}}{{ template "brew-prefix" . }}/bin/gh{{- else -}}{{ .chezmoi.homeDir }}/.local/bin/gh{{- end -}}

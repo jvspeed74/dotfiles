@@ -57,8 +57,8 @@ check "path: non-interactive zsh PATH starts with ~/.local/bin" \
     test "$(clean_zsh 'print -r -- $path[1]' 2>/dev/null)" = "$HOME/.local/bin"
 # Interactive: .zshrc may prepend more (e.g. Homebrew on macOS), so check order, not position.
 clean_zsh_i() { env -i HOME="$HOME" USER="$USER" ${2:+PATH="$2"} zsh -i -c "$1" </dev/null 2>/dev/null; }
-check "path: interactive zsh PATH has ~/.local/bin before Homebrew" \
-    clean_zsh_i '(( path[(i)$HOME/.local/bin] < path[(i)/home/linuxbrew/.linuxbrew/bin] && path[(i)/home/linuxbrew/.linuxbrew/bin] <= $#path ))'
+check "path: interactive zsh PATH starts with ~/.local/bin (Linux has no Homebrew)" \
+    test "$(clean_zsh_i 'print -r -- $path[1]' | tail -n1)" = "$HOME/.local/bin"
 check "path: interactive zsh PATH has no duplicate entries" \
     test -z "$(clean_zsh_i 'print -l $path' | sort | uniq -d)"
 # A nested zsh keeps its parent's order: an activated venv first in the parent stays first. The
@@ -69,7 +69,7 @@ check "path: nested non-interactive zsh keeps the parent's first entry (venv)" \
     test "$(env -i HOME="$HOME" USER="$USER" PATH="$parent" zsh -c 'print -r -- $path[1]')" = "$venv"
 check "path: nested interactive zsh keeps the parent's first entry (venv)" \
     test "$(clean_zsh_i 'print -r -- $path[1]' "$parent" | tail -n1)" = "$venv"
-for tool in brew gh rg fd lazygit uv node mmdc; do
+for tool in gh rg fd lazygit uv node mmdc; do
     check "tool resolves in interactive zsh: $tool" zsh -i -c "command -v $tool >/dev/null" </dev/null
 done
 
@@ -94,14 +94,15 @@ check "node: a fresh zsh still uses the newest Node ($node_new)" test "$(clean_z
 node_child=$(clean_zsh_i "nvm use $node_old >/dev/null && zsh -c 'node --version'" | tail -n1)
 check "node: child zsh -c keeps the parent's \`nvm use $node_old\` ($node_child)" \
     bash -c '[[ $1 == "v$2."* ]]' _ "$node_child" "$node_old"
-brew_bin=/home/linuxbrew/.linuxbrew/bin
-for tool in gh rg fd lazygit; do
-    check "#10 $tool resolves to Homebrew ($brew_bin)" \
-        test "$(zsh -i -c "command -v $tool" </dev/null 2>/dev/null)" = "$brew_bin/$tool"
+# Linux tools: pinned GitHub releases linked from ~/.local/bin into ~/.local/opt; no Homebrew.
+local_bin="$HOME/.local/bin"
+for tool in gh rg fd lazygit nvim tree-sitter fzf; do
+    check "release: $tool resolves to $local_bin in interactive and non-interactive zsh" \
+        bash -c '[[ $(zsh -i -c "command -v $1" </dev/null 2>/dev/null | tail -n1) == "$2/$1" && $(zsh -c "command -v $1") == "$2/$1" ]]' _ "$tool" "$local_bin"
+    check "release: $tool links into ~/.local/opt" bash -c '[[ $(readlink "$1") == "$HOME"/.local/opt/* ]]' _ "$local_bin/$tool"
+    check "release: $tool runs" "$local_bin/$tool" --version
 done
-check "#10 brew tools resolve in non-interactive zsh (.zshenv)" zsh -c 'command -v gh rg fd lazygit >/dev/null'
-check "#10 no stale ~/.local/bin/fd or ~/.local/bin/lazygit" \
-    test ! -e "$HOME/.local/bin/fd" -a ! -e "$HOME/.local/bin/lazygit"
+check "release: no Homebrew on Linux" test ! -e /home/linuxbrew
 check "#8 chrome-headless-shell downloaded by after_16" \
     bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
 check "#4 no ~/.zshrc.pre-oh-my-zsh" test ! -e "$HOME/.zshrc.pre-oh-my-zsh"
@@ -116,24 +117,23 @@ check "docs: README, GUIDE, ARCHITECTURE, CONTRIBUTING are not applied to ~" \
     test ! -e "$HOME/README.md" -a ! -e "$HOME/GUIDE.md" -a ! -e "$HOME/ARCHITECTURE.md" -a ! -e "$HOME/CONTRIBUTING.md"
 if [[ -n "$(chezmoi status)" ]]; then chezmoi status; chezmoi diff | head -60; fi
 
-check "#3/#10 github.com helper is !$brew_bin/gh" \
-    bash -c "git config --get-all credential.https://github.com.helper | grep -qxF '!$brew_bin/gh auth git-credential'"
+check "#3 github.com helper is !$local_bin/gh" \
+    bash -c "git config --get-all credential.https://github.com.helper | grep -qxF '!$local_bin/gh auth git-credential'"
 cred_out=$(printf 'protocol=https\nhost=github.com\n\n' | GIT_TERMINAL_PROMPT=0 git credential fill 2>&1 || true)
 check "#3 helper runs before gh auth login (no 'No such file')" \
     bash -c '! grep -qE "No such file|command not found" <<<"$1"' _ "$cred_out"
 
 # nvim: Neovim + LazyVim bootstrap, dev clients, shell env.
-prefix=/home/linuxbrew/.linuxbrew
-for tool in nvim tree-sitter fzf dotnet snow; do
-    check "nvim: $tool resolves to Homebrew in non-interactive zsh" \
-        test "$(zsh -c "command -v $tool" 2>/dev/null)" = "$prefix/bin/$tool"
+# dotnet and psql from apt, snow from uv (PyPI).
+for tool in dotnet psql; do
+    check "nvim: $tool resolves to /usr/bin in non-interactive zsh" test "$(zsh -c "command -v $tool" 2>/dev/null)" = "/usr/bin/$tool"
 done
-check "nvim: psql resolves to keg-only libpq in non-interactive zsh" \
-    test "$(zsh -c 'command -v psql' 2>/dev/null)" = "$prefix/opt/libpq/bin/psql"
+check "nvim: snow resolves to $local_bin in non-interactive zsh" test "$(zsh -c 'command -v snow' 2>/dev/null)" = "$local_bin/snow"
+check "nvim: dotnet SDK 10 installed" bash -c 'zsh -c "dotnet --list-sdks" | grep -q "^10\."'
 check "nvim: Neovim >= 0.11.2" zsh -c "nvim --headless -c 'if has(\"nvim-0.11.2\") | qa | else | cq | endif'"
-check "nvim: EDITOR and VISUAL are Homebrew nvim" \
-    test "$(zsh -c 'echo "$EDITOR|$VISUAL"')" = "$prefix/bin/nvim|$prefix/bin/nvim"
-check "nvim: DOTNET_ROOT is Homebrew dotnet" test "$(zsh -c 'echo "$DOTNET_ROOT"')" = "$prefix/opt/dotnet/libexec"
+check "nvim: EDITOR and VISUAL are the release nvim" \
+    test "$(zsh -c 'echo "$EDITOR|$VISUAL"')" = "$local_bin/nvim|$local_bin/nvim"
+check "nvim: DOTNET_ROOT is apt's dotnet" test "$(zsh -c 'echo "$DOTNET_ROOT"')" = /usr/lib/dotnet
 check "nvim: LazyVim starter present without .git" \
     test -f "$HOME/.config/nvim/lua/config/lazy.lua" -a ! -e "$HOME/.config/nvim/.git"
 for plugin in lazy.nvim LazyVim vim-dadbod crates.nvim chezmoi.nvim; do
@@ -188,7 +188,14 @@ if [[ $mode == corporate ]]; then
         check "#2/#5 $var set in non-interactive zsh" grep -q "^$var=" <<<"$env_dump"
     done
     check "apt proxy config written" test -f /etc/apt/apt.conf.d/95corporate-proxy
-    check "#10 Homebrew analytics disabled" bash -c 'zsh -c "brew analytics state" 2>&1 | grep -qi disabled'
+    # The corporate proxy blocks raw.githubusercontent.com and ghcr.io (as the real one does). Proves
+    # the block is active; every install above succeeding proves nothing depends on those hosts.
+    for blocked in https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh https://ghcr.io/v2/; do
+        check "restricted: proxy blocks $blocked (403)" \
+            test "$(zsh -c "curl -s -o /dev/null -w '%{http_code}' '$blocked'")" = 403
+    done
+    check "restricted: control: github.com release downloads pass the proxy" \
+        test "$(zsh -c "curl -sL -o /dev/null -w '%{http_code}' https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_checksums.txt")" = 200
     check "CA installed by before_00" test -f /usr/local/share/ca-certificates/corporate-root-ca.crt
 
     check "#5 npm reaches the registry through the TLS proxy" zsh -i -c 'npm ping >/dev/null 2>&1' </dev/null

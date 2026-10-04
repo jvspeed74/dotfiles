@@ -1,0 +1,2 @@
+{{- /* One install_release call from a .linuxTools entry: (dict "name" "<name>" "tool" .linuxTools.<key>). */ -}}
+install_release {{ .name }} {{ .tool.tag }} "https://github.com/{{ .tool.repo }}/releases/download/{{ .tool.tag }}/{{ .tool.asset }}" {{ .tool.sha256 }}{{ range .tool.bins }} {{ . | quote }}{{ end }}

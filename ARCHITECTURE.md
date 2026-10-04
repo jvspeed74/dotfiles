@@ -92,7 +92,10 @@ must already have the proxy and trust the corporate CA.
 |---|---|
 | `.chezmoi.toml.tmpl` | Prompts with `promptBoolOnce` / `promptStringOnce` and writes the answers to `[data]`. |
 | `~/.config/chezmoi/chezmoi.toml` | The answers. Local to the machine; never committed. |
-| `.chezmoitemplates/brew-prefix` | Homebrew prefix per OS: `/opt/homebrew` or `/home/linuxbrew/.linuxbrew`. |
+| `.chezmoidata/linux-tools.toml` | Linux tool pins: GitHub release tag, asset and sha256 per tool; the Snowflake CLI version. |
+| `.chezmoitemplates/brew-prefix` | Homebrew prefix, macOS only: `/opt/homebrew`. |
+| `.chezmoitemplates/gh-path` | Absolute path of `gh` per OS: Homebrew on macOS, `~/.local/bin/gh` on Linux. |
+| `.chezmoitemplates/install-release`, `install-release-call` | Linux: the `install_release` bash function, and one call rendered from a `linux-tools.toml` entry. |
 | `*.tmpl` | Every templated file and script. |
 
 **Flow**
@@ -102,7 +105,8 @@ flowchart LR
     Q["init prompts"] --> T["chezmoi.toml<br/>is_corporate, proxy URL, CA path"]
     T --> R["render *.tmpl"]
     O["chezmoi.os<br/>darwin or linux"] --> R
-    P["brew-prefix partial"] --> R
+    P["partials<br/>brew-prefix, gh-path, install-release"] --> R
+    D["linux-tools.toml<br/>pinned releases"] --> R
     R --> OUT["files written to ~<br/>scripts to run"]
 ```
 
@@ -113,7 +117,8 @@ Two inputs decide every rendered line: the machine's answers and its OS.
 | `is_corporate` | `true` / `false` | Every `{{ if .is_corporate }}` block: proxy, CA trust, telemetry opt-outs |
 | `corporate_proxy_url` | e.g. `http://proxy.corp.example:8080` | `.zshenv`, `.gitconfig`, `.npmrc`, `.cargo/config.toml`, apt, every install script |
 | `corporate_ca_cert_source_path` | Path to the exported root CA | `before_00`; `NODE_EXTRA_CA_CERTS` on macOS |
-| `.chezmoi.os` (built in) | `darwin` / `linux` | OS branches and the `brew-prefix` partial |
+| `.chezmoi.os` (built in) | `darwin` / `linux` | OS branches: Homebrew on macOS, releases and apt on Linux |
+| `linuxTools.<tool>` (`.chezmoidata/linux-tools.toml`) | `repo`, `tag`, `asset`, `sha256`, `bins` | `after_15`, `after_17`–`after_20` on Linux |
 
 **Invariants**
 
@@ -166,7 +171,7 @@ script numbered `10`: the number orders scripts within a phase, the once/onchang
 |---|---|---|
 | A script runs again on every apply | It keeps failing; `run_once_` records success only | Fix the failure; see its error output |
 | An edited script re-runs on all machines | Its rendered content changed | Expected; scripts are idempotent ([CONTRIBUTING R6](CONTRIBUTING.md#r6-change-an-existing-run_once_-script)) |
-| A tool is missing in a later script | That script assumed an earlier script's environment | Each script evals `brew shellenv` itself |
+| A tool is missing in a later script | That script assumed an earlier script's environment | Each script evals `brew shellenv` (macOS) or puts `~/.local/bin` on its PATH (Linux) itself |
 
 ## 4. Provisioning scripts
 
@@ -176,35 +181,47 @@ script numbered `10`: the number orders scripts within a phase, the once/onchang
 
 | Script | Installs | OS | Self-check |
 |---|---|---|---|
-| `run_once_after_05-install-homebrew.sh.tmpl` | Homebrew (Linux: apt prerequisites first; corporate: analytics off) | both | `brew` on PATH |
+| `run_once_after_05-install-homebrew.sh.tmpl` | Homebrew (corporate: analytics off); renders empty on Linux | macOS | `brew` on PATH |
 | `run_once_after_10-install-apt-packages.sh` | build-essential, unzip, golang-go, Chrome libs, python3-venv, zsh, then `chsh` to zsh | Linux | gcc, go, unzip, zsh, `import ensurepip`, login shell |
 | `run_once_after_11-install-rustup.sh.tmpl` | rustup + cargo (`--no-modify-path`) | both | `rustc`, `cargo` |
 | `run_once_after_12-install-nvm-node.sh.tmpl` | nvm (git clone, v0.40.1) + Node LTS | both | `node --version` |
 | `run_once_after_13-install-uv.sh.tmpl` | uv | both | `uv --version` |
 | `run_once_after_14-install-oh-my-zsh.sh.tmpl` | Oh My Zsh (git clone) + autosuggestions + syntax highlighting | both | plugin directories |
-| `run_once_after_15-install-lazygit.sh.tmpl` | lazygit (brew) | both | `lazygit --version` |
+| `run_once_after_15-install-lazygit.sh.tmpl` | lazygit (macOS: brew; Linux: pinned release) | both | `lazygit --version` |
 | `run_once_after_16-install-mermaid-cli.sh.tmpl` | mermaid-cli + headless Chrome | both | `mmdc --version` |
-| `run_once_after_17-install-gh.sh.tmpl` | gh (brew) | both | `gh --version` |
-| `run_once_after_18-install-ripgrep-fd.sh.tmpl` | ripgrep, fd (brew) | both | `rg`, `fd` |
-| `run_once_after_19-install-neovim-lazyvim.sh.tmpl` | Neovim, tree-sitter-cli, fzf, Nerd Font (macOS), LazyVim starter + plugins | both | Neovim ≥ 0.11.2, plugin directories |
-| `run_once_after_20-install-dev-clients.sh.tmpl` | .NET SDK, psql (libpq), Snowflake CLI | both | `dotnet`, `psql`, `snow` |
+| `run_once_after_17-install-gh.sh.tmpl` | gh (macOS: brew; Linux: pinned release) | both | `gh --version`, `gh` at the `.gitconfig` path |
+| `run_once_after_18-install-ripgrep-fd.sh.tmpl` | ripgrep, fd (macOS: brew; Linux: pinned releases) | both | `rg`, `fd` |
+| `run_once_after_19-install-neovim-lazyvim.sh.tmpl` | Neovim, tree-sitter-cli, fzf (macOS: brew + Nerd Font; Linux: pinned releases), LazyVim starter + plugins | both | Neovim ≥ 0.11.2, plugin directories |
+| `run_once_after_20-install-dev-clients.sh.tmpl` | .NET SDK, psql, Snowflake CLI (macOS: brew; Linux: apt `dotnet-sdk-10.0` + `postgresql-client`, `uv tool install snowflake-cli`) | both | `dotnet`, `psql`, `snow` |
 
-**Flow: system and Homebrew tools**
+**Flow: CLI tools on macOS**
 
 ```mermaid
 flowchart LR
-    A10["after_10 apt<br/>gcc, zsh, python3-venv"]
     A05["after_05 Homebrew"] --> A15["after_15 lazygit"]
     A05 --> A17["after_17 gh"]
     A05 --> A18["after_18 ripgrep, fd"]
     A05 --> A19["after_19 Neovim, LazyVim"]
     A05 --> A20["after_20 dotnet, psql, snow"]
-    A10 -.->|"C compiler"| A19
     A18 -.->|"rg, fd"| A19
 ```
 
-Homebrew is the root for most tools; LazyVim additionally needs the C compiler from apt and
-ripgrep/fd. Solid arrows install with; dashed arrows are runtime needs.
+**Flow: CLI tools on Linux**
+
+```mermaid
+flowchart LR
+    D["linux-tools.toml<br/>pinned releases"] --> A15["after_15 lazygit"]
+    D --> A17["after_17 gh"]
+    D --> A18["after_18 ripgrep, fd"]
+    D --> A19["after_19 Neovim, LazyVim"]
+    A10["after_10 apt<br/>gcc, zsh, python3-venv"] -.->|"C compiler"| A19
+    A18 -.->|"rg, fd"| A19
+    A13["after_13 uv"] --> A20["after_20 apt dotnet, psql<br/>uv snow"]
+```
+
+macOS installs CLI tools with Homebrew. Linux never uses Homebrew: its hosts (`ghcr.io`,
+`raw.githubusercontent.com`) are blocked on the corporate network, so Linux tools come from pinned
+GitHub releases, Ubuntu's apt and PyPI. Solid arrows install with; dashed arrows are runtime needs.
 
 **Flow: language runtimes and shell**
 
@@ -222,7 +239,12 @@ mermaid-cli depend on an earlier script.
 **Invariants**
 
 - Every install ends with a check that the tool runs; a failed check exits non-zero.
-- Scripts that call `brew` evaluate `brew shellenv` themselves (layer 3, last invariant).
+- Scripts that call `brew` (macOS only) evaluate `brew shellenv` themselves (layer 3, last
+  invariant).
+- Linux release tools are pinned by tag and sha256 in `.chezmoidata/linux-tools.toml`.
+  `install_release` installs nothing on a checksum mismatch, unpacks to `~/.local/opt/<tool>/<tag>`
+  and links binaries into `~/.local/bin`; changing a pin re-renders, and so re-runs, that script.
+- No Linux script fetches from `raw.githubusercontent.com` or `ghcr.io` (CI blocks both).
 - No installer may edit a chezmoi-managed file: rustup uses `--no-modify-path`; nvm and Oh My Zsh
   are cloned with git, so no installer runs.
 
@@ -231,8 +253,9 @@ mermaid-cli depend on an earlier script.
 | Symptom | Cause | Where handled |
 |---|---|---|
 | `chezmoi status` shows `~/.zshrc` or `~/.zshenv` modified after bootstrap | An installer appended to a managed file | CI: "chezmoi status is clean" check |
-| `brew: command not found` inside a script | Script did not evaluate `brew shellenv` | Pattern in `after_15`–`after_20` |
-| Old binary shadows the Homebrew one | `~/.local/bin` precedes Homebrew on PATH | `after_10` and `after_15` remove the old `fd` symlink and `lazygit` binary |
+| `brew: command not found` inside a script (macOS) | Script did not evaluate `brew shellenv` | Pattern in `after_15`–`after_20` |
+| `install_release: … sha256 mismatch` | The pinned asset changed upstream, or the pin is wrong | Re-check the asset; update `sha256` in `linux-tools.toml` only after verifying it |
+| A Linux tool stays at an old version | Its pin was not bumped | Bump `tag`, `asset` and `sha256` together ([GUIDE](GUIDE.md#update-installed-tools)) |
 
 ## 5. Shell environment
 
@@ -242,7 +265,7 @@ mermaid-cli depend on an earlier script.
 
 | File | Contents | Read by |
 |---|---|---|
-| `dot_zshenv.tmpl` → `~/.zshenv` | `_dotfiles_path_prepend` and `typeset -U path PATH`, corporate proxy and CA variables, cargo env, Homebrew on Linux, `EDITOR`/`VISUAL`, `DOTNET_ROOT`, libpq on PATH, the newest nvm Node bin (`NVM_DIR`), then `~/.local/bin` ahead of Homebrew and system dirs | Every zsh |
+| `dot_zshenv.tmpl` → `~/.zshenv` | `_dotfiles_path_prepend` and `typeset -U path PATH`, corporate proxy and CA variables, cargo env, `EDITOR`/`VISUAL` and `DOTNET_ROOT` per OS, libpq on PATH (macOS), the newest nvm Node bin (`NVM_DIR`), then `~/.local/bin` ahead of Homebrew and system dirs | Every zsh |
 | `dot_zshrc.tmpl` → `~/.zshrc` | Homebrew on macOS, `~/.local/bin` and `/usr/local/bin` if missing (unconditionally in macOS login shells, after `path_helper`), the `nvm` command (loaded on first use), Oh My Zsh | Interactive zsh only |
 
 **Flow**
@@ -262,10 +285,12 @@ interactive shells.
 **Invariants**
 
 - Variables used by scripts, editors, or `wsl.exe <cmd>` go in `.zshenv`.
-- Homebrew's `shellenv` runs in `.zshenv` on Linux but in `.zshrc` on macOS: macOS's
-  `path_helper` would reorder anything `.zshenv` puts on PATH for login shells.
-- `.zshenv` refers to Homebrew tools by absolute path behind `[[ -x … ]]` guards, so it works
-  before Homebrew is on PATH and when a tool is not installed.
+- Homebrew exists only on macOS, and its `shellenv` runs in `.zshrc`, not `.zshenv`: macOS's
+  `path_helper` would reorder anything `.zshenv` puts on PATH for login shells. Linux tools sit in
+  `~/.local/bin`, which `.zshenv` puts first in every zsh.
+- `.zshenv` refers to editor and dev tools by absolute path behind `[[ -x … ]]` / `[[ -d … ]]`
+  guards (Homebrew paths on macOS; `~/.local/bin/nvim` and `/usr/lib/dotnet` on Linux), so it works
+  before anything else is on PATH and when a tool is not installed. Linux has no Homebrew lines.
 - `~/.local/bin` precedes Homebrew and the system directories in every fresh zsh: `.zshenv` adds
   it last, and `.zshrc` re-adds it after macOS `path_helper`. `typeset -U path PATH` keeps each
   entry once. It also precedes the nvm Node bin. It is the only user bin directory; `~/bin` is not
@@ -302,7 +327,7 @@ CA that re-signs TLS traffic.
 ```mermaid
 flowchart LR
     CA["corporate root CA<br/>exported cert file"] --> S["system trust store<br/>before_00"]
-    S --> T1["curl, git, apt, Homebrew,<br/>rustup, Go, pip"]
+    S --> T1["curl, git, apt, Homebrew (macOS),<br/>rustup, Go, pip"]
     CA --> N["NODE_EXTRA_CA_CERTS"]
     N --> T2["Node, npm, npx"]
     S --> U["UV_SYSTEM_CERTS=1"]
@@ -319,18 +344,26 @@ variable pointing it at the corporate CA.
 
 | Tool | Where it reads the proxy |
 |---|---|
-| apt | `/etc/apt/apt.conf.d/95corporate-proxy` (`before_01`) |
+| apt | `/etc/apt/apt.conf.d/95corporate-proxy` (`before_01`); hosts in apt's sources that resolve to a private address (an internal mirror) get `"DIRECT"` |
 | git | `[http] proxy` in `~/.gitconfig`, and the environment |
 | npm | `proxy` / `https-proxy` in `~/.npmrc` |
 | cargo | `[http] proxy` in `~/.cargo/config.toml` |
-| curl, Homebrew, pip, uv, Go, rustup | `http_proxy` / `https_proxy` (both cases) from `.zshenv`; install scripts export the uppercase pair |
+| curl (including `install_release`), Homebrew (macOS), pip, uv, Go, rustup | `http_proxy` / `https_proxy` (both cases) from `.zshenv`; install scripts export the uppercase pair |
 | Puppeteer's browser download | Same variables, honored only because `after_16` adds `proxy-agent` |
 
 **Invariants**
 
 - Every corporate setting is inside `{{ if .is_corporate }}`.
-- Telemetry is off on corporate machines: Homebrew (`brew analytics off`) and .NET
+- Telemetry is off on corporate machines: Homebrew on macOS (`brew analytics off`) and .NET
   (`DOTNET_CLI_TELEMETRY_OPTOUT=1`).
+- Nothing on Linux needs the hosts the corporate proxy blocks (below); CI's corporate job blocks
+  them too.
+
+**Hosts on the corporate network** (measured on the corporate machine)
+
+| Blocked (403) | Reachable |
+|---|---|
+| `raw.githubusercontent.com` (installer scripts), `ghcr.io` (Homebrew packages) | git over https to github.com, GitHub release downloads, nodejs.org, the npm registry, PyPI, sh.rustup.rs, astral.sh, storage.googleapis.com (Chrome for puppeteer), the internal apt mirror |
 - Downloads before the repo is cloned rely on the user's shell (layer 1).
 
 **Failure modes**
@@ -403,27 +436,27 @@ TLS-intercepting proxy.
 ```mermaid
 flowchart LR
     W["bootstrap.yml<br/>code changes"] --> T["templates, 24.04 + 26.04<br/>render, bash -n"]
-    W --> P["bootstrap-personal, 24.04 + 26.04<br/>Homebrew downloads cached"]
-    W --> C["bootstrap-corporate, 24.04 + 26.04<br/>internal network, no cache"]
-    C --> X["mitmproxy<br/>re-signs TLS"]
+    W --> P["bootstrap-personal, 24.04 + 26.04"]
+    W --> C["bootstrap-corporate, 24.04 + 26.04<br/>internal network"]
+    C --> X["mitmproxy<br/>re-signs TLS, blocks<br/>raw.githubusercontent.com, ghcr.io"]
     X --> I["internet"]
     W2["docs.yml<br/>every pull request"] --> D["docs<br/>mermaid, links"]
 ```
 
 The corporate job's container has no route out except mitmproxy, so any tool that ignores the
-proxy or the corporate CA fails the job. It never uses a cache: a cache hit would skip the very
-downloads it tests.
+proxy or the corporate CA fails the job. Like the real corporate proxy, mitmproxy answers 403 for
+`raw.githubusercontent.com` and `ghcr.io`, so any install that needs them fails too.
 
 | Workflow | Runs on |
 |---|---|
-| `bootstrap.yml` | Pull requests touching `dot_*`, `run_*`, `.chezmoi*`, or `.github/**` (except the docs checker files); manual runs |
+| `bootstrap.yml` | Pull requests touching `dot_*`, `run_*`, `.chezmoi*` and files inside `.chezmoi*/` (tool pins, partials), or `.github/**` (except the docs checker files); manual runs |
 | `docs.yml` | Every pull request; manual runs |
 
 | Job | Proves |
 |---|---|
-| `templates` | In both `ubuntu:24.04` and `ubuntu:26.04`: every template renders for both profiles; every script passes `bash -n`; key lines are present or absent per OS and profile. |
-| `bootstrap-personal` | A full bootstrap succeeds in both `ubuntu:24.04` and `ubuntu:26.04`; tools resolve; `chezmoi status` is clean; a second apply changes nothing. Homebrew downloads come from a weekly cache; every install step still runs. |
-| `bootstrap-corporate` | The same through the intercepting proxy, plus CA and proxy behavior per tool, with negative controls. |
+| `templates` | In both `ubuntu:24.04` and `ubuntu:26.04`: every template renders for both profiles; every script passes `bash -n`; key lines are present or absent per OS and profile; every Linux release pin has a sha256 and renders its exact call; `install_release` works offline (a bad checksum installs nothing); the apt DIRECT host selection on sample sources. |
+| `bootstrap-personal` | A full bootstrap succeeds in both `ubuntu:24.04` and `ubuntu:26.04`; tools resolve; `chezmoi status` is clean; a second apply changes nothing. |
+| `bootstrap-corporate` | The same through the intercepting, restricted proxy, plus CA and proxy behavior per tool, with negative controls (including that the two blocked hosts return 403). |
 | `docs` | Every Mermaid diagram renders; every relative link, anchor, and backticked repo path resolves. |
 | `macos` (manual) | macOS template renders; the `gh` credential helper with a minimal PATH. |
 
@@ -437,7 +470,9 @@ downloads it tests.
 
 | Gap | Effect |
 |---|---|
-| No `no_proxy` | On corporate machines, requests to `localhost` and internal hosts also go to the proxy. |
+| No `no_proxy` | On corporate machines, requests to `localhost` and internal hosts also go to the proxy (apt's internal mirror is the exception: `before_01` makes it DIRECT). |
+| Linux on ARM | Not supported: release pins are `x86_64` assets; `install_release` refuses other architectures. |
+| apt DIRECT hosts | Chosen once, when `before_01` runs; a mirror added later needs `before_01` re-run ([CONTRIBUTING R7](CONTRIBUTING.md#r7-re-run-a-run_once_-script-on-one-machine)). |
 | VS Code Remote-WSL server | Reads no shell startup files, so it gets no proxy. |
 | macOS `pip` behind the corporate proxy | Untested. |
 | First Neovim launch (language servers, parsers, .NET tools) | Not exercised by CI. |
