@@ -26,6 +26,6 @@ if [[ ! -x "$claude_bin" ]]; then
     bash "$installer"
 fi
 
-# Absolute path: ~/.zshenv is not loaded here, and under WSL a bare `claude` can resolve to the
-# Windows host's claude.exe through the appended Windows PATH.
+# Absolute path: chezmoi runs this under bash, so ~/.zshenv (which puts ~/.local/bin on PATH) is
+# not loaded.
 "$claude_bin" --version >/dev/null || { echo "claude install failed" >&2; exit 1; }

@@ -198,8 +198,7 @@ script numbered `10`: the number orders scripts within a phase, the once/onchang
 **Claude Code and `~/.claude`.** `after_21` is not pinned like the Linux release tools: the native
 installer puts a launcher at `~/.local/bin/claude` and the versions under `~/.local/share/claude`,
 and Claude Code then updates itself. The script downloads the installer to a file before running it
-and verifies by absolute path (under WSL a bare `claude` can resolve to the Windows host's
-`claude.exe`). chezmoi manages only user-authored files under `~/.claude`, from `private_dot_claude/`:
+and verifies by absolute path, because chezmoi runs it under bash without `~/.zshenv`. chezmoi manages only user-authored files under `~/.claude`, from `private_dot_claude/`:
 `CLAUDE.md` (a template whose Docker line renders only where `docker` is on PATH), an `agents/`
 directory, and the `diagram`, `i-have-adhd` and `python-coder-v2` skills. The directory is mode 700
 because transcripts are plaintext. Nothing under it is `exact_`, and `settings.json`,
