@@ -95,7 +95,9 @@ so a bare `sudo -v` in a `run_*` script fails there; use `sudo -n true 2>/dev/nu
 ## CI
 
 The jobs, which workflow runs them, and what each proves are in
-[ARCHITECTURE layer 8](ARCHITECTURE.md#8-verification-ci). A docs-only change runs only `docs.yml`.
+[ARCHITECTURE layer 8](ARCHITECTURE.md#8-verification-ci). Only `docs.yml` runs on pull requests;
+`bootstrap.yml` runs only on manual dispatch (`gh workflow run bootstrap.yml --ref <branch>`, add
+`-f macos=true` for the macOS job), so run the local checks above before opening a pull request.
 Never add a download cache to `bootstrap-corporate`: a cache hit skips the proxy and CA path the
 job exists to test.
 
@@ -337,5 +339,8 @@ On existing machines, use `:LazyExtras`.
 
 - Branch from the branch your change depends on, and set the PR base to it; retarget to `main` once
   the base merges.
-- In the description, list what changed and the evidence (CI run, logs) for each claim.
-- Keep a **Verification** checklist; tick an item only with a link to the run that proves it.
+- Use the template in `.github/PULL_REQUEST_TEMPLATE.md`. Bootstrap CI does not run on PR pushes,
+  so run the local checks and append each command's outcome under **Results**.
+- In the description, list what changed and the evidence (local output, or a manual CI run) for
+  each claim.
+- Keep the **Test plan** checklist; tick an item only with its outcome recorded under **Results**.
