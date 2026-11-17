@@ -141,6 +141,17 @@ check "#5 corp after_21 exports HTTPS_PROXY" has "$A21" 'export HTTPS_PROXY="htt
 check "#5 personal after_21 has no proxy or CA variables" \
     bash -c "! grep -qE 'NODE_EXTRA_CA_CERTS|HTTPS_PROXY|HTTP_PROXY' '$P/run_once_after_21-install-claude-code.sh'"
 
+# Global ~/.claude/CLAUDE.md is a template: the uv line is unconditional, the Docker line renders
+# only where docker is on PATH when chezmoi applies it.
+claude_md="$P/private_dot_claude/CLAUDE.md"
+check "claude: rendered CLAUDE.md keeps the uv line" has "$claude_md" '`uv` is installed.'
+check "claude: rendered CLAUDE.md has no template markers" lacks "$claude_md" '{{'
+if command -v docker >/dev/null; then
+    check "claude: rendered CLAUDE.md has the Docker line (docker on PATH)" has "$claude_md" '`Docker` is installed'
+else
+    check "claude: rendered CLAUDE.md omits the Docker line (no docker on PATH)" lacks "$claude_md" '`Docker` is installed'
+fi
+
 # #6 / #10: macOS: guarded brew shellenv in .zshrc (before the PATH lines) and in every brew script;
 # .zshrc skips it when Homebrew is already on PATH (nested shells), except in login shells
 # (path_helper). Linux has no Homebrew at all.

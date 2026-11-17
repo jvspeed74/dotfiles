@@ -109,6 +109,11 @@ check "claude: resolves to $local_bin in interactive and non-interactive zsh" \
 check "claude: launcher links into ~/.local/share/claude/versions" \
     bash -c '[[ $(readlink -f "$1") == "$HOME"/.local/share/claude/versions/* ]]' _ "$local_bin/claude"
 check "claude: runs" "$local_bin/claude" --version
+# The managed ~/.claude files (private_dot_claude): CLAUDE.md, the agents dir and the authored skills.
+check "claude: ~/.claude is mode 700 (transcripts are plaintext)" test "$(stat -c %a "$HOME/.claude")" = 700
+check "claude: CLAUDE.md, agents dir and authored skills are applied" \
+    bash -c 'for f in CLAUDE.md agents/.keep skills/diagram/SKILL.md skills/i-have-adhd/SKILL.md skills/python-coder-v2/SKILL.md skills/python-coder-v2/CORE_VISION.md; do [[ -f "$HOME/.claude/$f" ]] || { echo "missing ~/.claude/$f" >&2; exit 1; }; done'
+check "claude: applied CLAUDE.md has no template markers" bash -c '! grep -qF "{{" "$HOME/.claude/CLAUDE.md"'
 check "#8 chrome-headless-shell downloaded by after_16" \
     bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
 check "#4 no ~/.zshrc.pre-oh-my-zsh" test ! -e "$HOME/.zshrc.pre-oh-my-zsh"
