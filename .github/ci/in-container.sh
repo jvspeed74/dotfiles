@@ -111,8 +111,9 @@ check "claude: launcher links into ~/.local/share/claude/versions" \
 check "claude: runs" "$local_bin/claude" --version
 # The managed ~/.claude files (private_dot_claude): CLAUDE.md, the agents dir and the authored skills.
 check "claude: ~/.claude is mode 700 (transcripts are plaintext)" test "$(stat -c %a "$HOME/.claude")" = 700
+# agents/ is only a directory: chezmoi does not write the empty .keep file that reserves it.
 check "claude: CLAUDE.md, agents dir and authored skills are applied" \
-    bash -c 'for f in CLAUDE.md agents/.keep skills/diagram/SKILL.md skills/i-have-adhd/SKILL.md skills/python-coder-v2/SKILL.md skills/python-coder-v2/CORE_VISION.md; do [[ -f "$HOME/.claude/$f" ]] || { echo "missing ~/.claude/$f" >&2; exit 1; }; done'
+    bash -c 'for f in CLAUDE.md skills/diagram/SKILL.md skills/i-have-adhd/SKILL.md skills/python-coder-v2/SKILL.md skills/python-coder-v2/CORE_VISION.md; do [[ -f "$HOME/.claude/$f" ]] || { echo "missing ~/.claude/$f" >&2; exit 1; }; done; [[ -d "$HOME/.claude/agents" ]] || { echo "missing ~/.claude/agents/" >&2; exit 1; }'
 check "claude: applied CLAUDE.md has no template markers" bash -c '! grep -qF "{{" "$HOME/.claude/CLAUDE.md"'
 check "#8 chrome-headless-shell downloaded by after_16" \
     bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
