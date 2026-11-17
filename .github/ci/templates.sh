@@ -130,6 +130,17 @@ fi
 check "#5 corp .zshenv: $node_ca" has "$C/dot_zshenv" "$node_ca"
 check "#5 corp after_16: $node_ca" has "$C/run_once_after_16-install-mermaid-cli.sh" "$node_ca"
 
+# Claude Code: the native installer from claude.ai (after_21). Neither host it uses
+# (claude.ai, downloads.claude.ai) is raw.githubusercontent.com or ghcr.io.
+A21="$C/run_once_after_21-install-claude-code.sh"
+check "claude: after_21 fetches the native installer" has "$A21" "https://claude.ai/install.sh"
+check "claude: after_21 installs only when ~/.local/bin/claude is missing" has "$A21" 'if [[ ! -x "$claude_bin" ]]; then'
+check "claude: after_21 verifies by absolute path" has "$A21" '"$claude_bin" --version'
+check "#5 corp after_21: $node_ca" has "$A21" "$node_ca"
+check "#5 corp after_21 exports HTTPS_PROXY" has "$A21" 'export HTTPS_PROXY="http://proxy.test:8080"'
+check "#5 personal after_21 has no proxy or CA variables" \
+    bash -c "! grep -qE 'NODE_EXTRA_CA_CERTS|HTTPS_PROXY|HTTP_PROXY' '$P/run_once_after_21-install-claude-code.sh'"
+
 # #6 / #10: macOS: guarded brew shellenv in .zshrc (before the PATH lines) and in every brew script;
 # .zshrc skips it when Homebrew is already on PATH (nested shells), except in login shells
 # (path_helper). Linux has no Homebrew at all.

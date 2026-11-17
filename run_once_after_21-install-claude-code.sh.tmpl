@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if .is_corporate -}}
+export HTTP_PROXY={{ .corporate_proxy_url | quote }}
+export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
+# `claude install` ignores the OS trust store. chezmoi runs this under bash, so ~/.zshenv's
+# NODE_EXTRA_CA_CERTS is not inherited.
+{{ if eq .chezmoi.os "darwin" -}}
+export NODE_EXTRA_CA_CERTS={{ .corporate_ca_cert_source_path | quote }}
+{{ else -}}
+export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/corporate-root-ca.crt
+{{ end -}}
+{{ end -}}
+
+# Claude Code's native installer (https://code.claude.com/docs/en/setup): it puts a launcher at
+# ~/.local/bin/claude and the versions under ~/.local/share/claude, and Claude Code then updates
+# itself, so unlike the other tools it is not pinned here.
+claude_bin="$HOME/.local/bin/claude"
+
+if [[ ! -x "$claude_bin" ]]; then
+    installer="$(mktemp)"
+    trap 'rm -f "$installer"' EXIT
+    # Download the whole script before running it: a truncated `curl | bash` would run a partial one.
+    curl -fsSL https://claude.ai/install.sh -o "$installer"
+    bash "$installer"
+fi
+
+# Absolute path: ~/.zshenv is not loaded here, and under WSL a bare `claude` can resolve to the
+# Windows host's claude.exe through the appended Windows PATH.
+"$claude_bin" --version >/dev/null || { echo "claude install failed" >&2; exit 1; }
