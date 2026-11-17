@@ -115,6 +115,7 @@ check "#4 ~/.zshrc matches the managed template" cmp -s <(chezmoi cat "$HOME/.zs
 check "chezmoi status is clean after bootstrap" test -z "$(chezmoi status)"
 check "docs: README, GUIDE, ARCHITECTURE, CONTRIBUTING are not applied to ~" \
     test ! -e "$HOME/README.md" -a ! -e "$HOME/GUIDE.md" -a ! -e "$HOME/ARCHITECTURE.md" -a ! -e "$HOME/CONTRIBUTING.md"
+check "repo: .gitattributes is not applied to ~" test ! -e "$HOME/.gitattributes"
 if [[ -n "$(chezmoi status)" ]]; then chezmoi status; chezmoi diff | head -60; fi
 
 check "#3 github.com helper is !$local_bin/gh" \
