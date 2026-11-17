@@ -22,6 +22,8 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | Add any new file under `dot_config/nvim/` to `managed_re` in `run_once_after_19-install-neovim-lazyvim.sh.tmpl`. | Otherwise fresh machines treat it as a user config and skip the LazyVim bootstrap. |
 | Edit source files, not targets in `~`. | `chezmoi apply` overwrites targets from source. |
 | Start every script with `#!/usr/bin/env bash` and `set -euo pipefail`. | A failing command must stop the script, so its self-check never reports a half-install as success. |
+| Commit LF line endings; `.gitattributes` enforces it. | A CR in a `run_*` script breaks `bash`, and a CR in a skill's frontmatter can break its parsing. |
+| Under `~/.claude`, manage only user-authored files (`CLAUDE.md`, `agents/`, skills), never with `exact_`, and never settings or state. | Claude Code rewrites its own files there, and `skills/synced` is managed by claude.ai. |
 | Never wait for input: `apt-get -y` (with `DEBIAN_FRONTEND=noninteractive` and `--force-confold` where a dependency upgrade could hit a conffile prompt), `NONINTERACTIVE=1` for Homebrew; only `sudo` may prompt. | Any other prompt hangs the bootstrap. |
 
 ## Repo map
@@ -33,7 +35,9 @@ in [Recipes](#recipes), then [test locally](#test-locally). Background for every
 | `.chezmoitemplates/` | Partials: `brew-prefix` (macOS), `gh-path`, `install-release`, `install-release-call` | [2](ARCHITECTURE.md#2-config-data-and-templating) |
 | `.chezmoiignore` | Repo files never applied to `~` (docs, `jetbrains/`) | [3](ARCHITECTURE.md#3-apply-engine-and-ordering) |
 | `run_onchange_before_00-import-ca-cert.sh.tmpl`, `run_onchange_before_01-configure-apt-proxy.sh.tmpl` | Corporate CA and apt proxy | [6](ARCHITECTURE.md#6-corporate-network) |
-| `run_once_after_05-…` to `run_once_after_20-…` | Tool installs | [4](ARCHITECTURE.md#4-provisioning-scripts) |
+| `run_once_after_05-…` to `run_once_after_21-…` | Tool installs | [4](ARCHITECTURE.md#4-provisioning-scripts) |
+| `private_dot_claude/` | `~/.claude` (mode 700): `CLAUDE.md` template, `agents/`, authored skills | [4](ARCHITECTURE.md#4-provisioning-scripts) |
+| `.gitattributes` | Pins LF line endings; never applied to `~` | — |
 | `dot_zshenv.tmpl`, `dot_zshrc.tmpl` | Shell environment | [5](ARCHITECTURE.md#5-shell-environment) |
 | `dot_gitconfig.tmpl`, `dot_npmrc.tmpl`, `dot_cargo/config.toml.tmpl` | Tool configs (credential helper, corporate proxy) | [6](ARCHITECTURE.md#6-corporate-network) |
 | `dot_config/nvim/`, `dot_sqlfluff` | LazyVim seed and SQL dialect override | [7](ARCHITECTURE.md#7-editor-neovim-and-lazyvim) |

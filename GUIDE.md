@@ -133,6 +133,8 @@ about 7–10 minutes on a GitHub runner; laptop time and disk use are unmeasured
 | Snowflake CLI (Linux) | uv tool | `uv tool uninstall snowflake-cli` |
 | .NET SDK, psql (Linux) | apt | `sudo apt remove dotnet-sdk-10.0 postgresql-client` |
 | Tool directories | `~/.oh-my-zsh`, `~/.nvm`, `~/.cargo`, `~/.rustup`, `~/.local/bin/uv` | Delete the directory |
+| Claude Code (native installer) | `~/.local/bin/claude` (launcher), `~/.local/share/claude/` (versions); it updates itself | `rm -f ~/.local/bin/claude && rm -rf ~/.local/share/claude` (the official uninstall) |
+| Claude Code files (mode 700 directory) | `~/.claude/CLAUDE.md`, `~/.claude/agents/`, `~/.claude/skills/{diagram,i-have-adhd,python-coder-v2}` | Delete those files. Your login, settings, history and other skills in `~/.claude` belong to Claude Code and are not touched |
 | Neovim config and plugins | `~/.config/nvim`, `~/.local/share/nvim` | Delete both |
 
 ### After bootstrap
@@ -143,9 +145,10 @@ about 7–10 minutes on a GitHub runner; laptop time and disk use are unmeasured
 
 1. Open a new terminal (the login shell is now zsh).
 2. Run `gh auth login`. Git uses `gh` for GitHub HTTPS credentials; until you log in, git prompts.
-3. Select the Nerd Font in your terminal ([install the Nerd Font](#install-the-nerd-font)).
+3. Run `claude` and follow the browser prompts to log in. Bootstrap installs Claude Code but never signs in.
+4. Select the Nerd Font in your terminal ([install the Nerd Font](#install-the-nerd-font)).
 
-**Check:** `gh auth status` shows you logged in.
+**Check:** `gh auth status` shows you logged in, and `claude --version` prints a version.
 
 ## Everyday tasks
 
@@ -185,6 +188,7 @@ exception: their versions are pinned in the repo.
 | Rust | `rustup update` |
 | Node (keeps global npm packages such as mermaid-cli) | `nvm install --lts --reinstall-packages-from=current`; new shells use the newest installed version, and the first `nvm` in a shell loads nvm (~0.4 s) |
 | uv | `uv self update` |
+| Claude Code | Updates itself in the background; `claude update` applies an update now |
 | Oh My Zsh | `omz update` |
 | Neovim plugins and language servers | `:Lazy update`, then `:MasonUpdate` |
 
