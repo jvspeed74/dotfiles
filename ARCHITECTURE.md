@@ -17,7 +17,7 @@ flowchart LR
 ```
 
 Each layer consumes the output of the one before it. Layer 8 (CI) runs layers 1–7 in fresh
-containers on every pull request.
+containers on manual dispatch.
 
 Every layer below uses the same sections: **Responsibility**, **Files**, **Flow**, **Invariants**,
 **Failure modes**.
@@ -424,7 +424,7 @@ An existing config always wins: any unmanaged file in `~/.config/nvim` stops the
 
 ## 8. Verification (CI)
 
-**Responsibility:** run layers 1–7 from scratch on every pull request, including behind a
+**Responsibility:** run layers 1–7 from scratch on manual dispatch, including behind a
 TLS-intercepting proxy.
 
 **Files:** `.github/workflows/bootstrap.yml`, `.github/workflows/docs.yml`, `.github/ci/Dockerfile`, `.github/ci/templates.sh`,
@@ -449,7 +449,7 @@ proxy or the corporate CA fails the job. Like the real corporate proxy, mitmprox
 
 | Workflow | Runs on |
 |---|---|
-| `bootstrap.yml` | Pull requests touching `dot_*`, `run_*`, `.chezmoi*` and files inside `.chezmoi*/` (tool pins, partials), or `.github/**` (except the docs checker files); manual runs |
+| `bootstrap.yml` | Manual runs only (`workflow_dispatch`); the `macos` job also needs the `macos` input |
 | `docs.yml` | Every pull request; manual runs |
 
 | Job | Proves |
