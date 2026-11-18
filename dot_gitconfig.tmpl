@@ -7,6 +7,10 @@
 [user]
 	name = Jalen Vaughn
 	email = jvspeed74@gmail.com
+[core]
+	# Commit LF: convert CRLF to LF on commit, never convert on checkout. Covers files saved by
+	# Windows editors under WSL, in repos without a .gitattributes eol rule.
+	autocrlf = input
 {{- if .is_corporate }}
 [http]
 	proxy = {{ .corporate_proxy_url | quote }}
