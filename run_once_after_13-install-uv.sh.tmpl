@@ -6,6 +6,10 @@ export HTTP_PROXY={{ .corporate_proxy_url | quote }}
 export HTTPS_PROXY={{ .corporate_proxy_url | quote }}
 {{ end -}}
 
+# The installer edits shell profiles (.zshrc or .zshenv, and .profile) when ~/.local/bin is not on
+# PATH; ~/.zshenv owns that line, and the managed files must not drift.
+export UV_NO_MODIFY_PATH=1
+
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 "$HOME/.local/bin/uv" --version >/dev/null || { echo "uv install failed" >&2; exit 1; }

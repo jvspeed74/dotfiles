@@ -255,7 +255,10 @@ Homebrew (macOS) and the system directories on PATH.
 
 ### R7. Re-run a run_once_ script on one machine
 
-**Use when:** a script was skipped or must run again without changing it.
+**Use when:** a script that already succeeded must run again without changing it. For a script
+that has never succeeded, use `chezmoi apply ~/NN-<name>.sh` (the name `chezmoi status` prints)
+instead: it runs only that script and records it, whereas the command below runs it outside
+chezmoi, so the next `chezmoi apply` runs it again.
 
 **Steps**
 
