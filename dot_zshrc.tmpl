@@ -6,6 +6,12 @@
 [[ -x {{ template "brew-prefix" . }}/bin/brew ]] && { [[ -o login ]] || (( ! ${path[(Ie){{ template "brew-prefix" . }}/bin]} )) } && eval "$({{ template "brew-prefix" . }}/bin/brew shellenv)"
 [[ -o login ]] && path=("$HOME/.local/bin" /usr/local/bin $path)
 
+# Claude Code long-lived token from the login keychain; this file holds no secret. Exported only
+# when the item exists, so a machine without it keeps Claude Code's own login.
+_cc_token=$(security find-generic-password -a "$USER" -s claude-code-oauth -w 2>/dev/null) \
+    && [[ -n $_cc_token ]] && export CLAUDE_CODE_OAUTH_TOKEN=$_cc_token
+unset _cc_token
+
 {{ end -}}
 # If you come from bash you might have to change your $PATH.
 _dotfiles_path_prepend "$HOME/.local/bin" /usr/local/bin
