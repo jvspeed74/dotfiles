@@ -145,7 +145,7 @@ Two inputs decide every rendered line: the machine's answers and its OS.
 flowchart LR
     B0["before_00<br/>import corporate CA"] --> B1["before_01<br/>apt proxy, Linux"]
     B1 --> F["write managed files<br/>dot_*, create_*"]
-    F --> A["after_05 … after_20<br/>install tools"]
+    F --> A["after_05 … after_21<br/>install tools"]
 ```
 
 The phase comes from the `before_` / `after_` infix; within a phase, scripts run in ASCII order of
@@ -156,7 +156,7 @@ script numbered `10`: the number orders scripts within a phase, the once/onchang
 | Prefix | Runs | Used for |
 |---|---|---|
 | `run_onchange_before_` | Before files; again whenever its rendered content changes | `before_00` (CA), `before_01` (apt proxy): rerun if the proxy URL or CA path changes |
-| `run_once_after_` | After files; once per unique rendered content, and again after a failure | All tool installs (`after_05`–`after_20`) |
+| `run_once_after_` | After files; once per unique rendered content, and again after a failure | All tool installs (`after_05`–`after_21`) |
 
 **Invariants**
 
@@ -193,6 +193,17 @@ script numbered `10`: the number orders scripts within a phase, the once/onchang
 | `run_once_after_18-install-ripgrep-fd.sh.tmpl` | ripgrep, fd (macOS: brew; Linux: pinned releases) | both | `rg`, `fd` |
 | `run_once_after_19-install-neovim-lazyvim.sh.tmpl` | Neovim, tree-sitter-cli, fzf (macOS: brew + Nerd Font; Linux: pinned releases), LazyVim starter + plugins | both | Neovim ≥ 0.11.2, plugin directories |
 | `run_once_after_20-install-dev-clients.sh.tmpl` | .NET SDK, psql, Snowflake CLI (macOS: brew; Linux: apt `dotnet-sdk-10.0` + `postgresql-client`, `uv tool install snowflake-cli`) | both | `dotnet`, `psql`, `snow` |
+| `run_once_after_21-install-claude-code.sh.tmpl` | Claude Code, from its native installer (`claude.ai/install.sh`); skipped when `~/.local/bin/claude` exists | both | `~/.local/bin/claude --version` |
+
+**Claude Code and `~/.claude`.** `after_21` is not pinned like the Linux release tools: the native
+installer puts a launcher at `~/.local/bin/claude` and the versions under `~/.local/share/claude`,
+and Claude Code then updates itself. The script downloads the installer to a file before running it
+and verifies by absolute path, because chezmoi runs it under bash without `~/.zshenv`. chezmoi manages only user-authored files under `~/.claude`, from `private_dot_claude/`:
+`CLAUDE.md` (a template whose Docker line renders only where `docker` is on PATH), an `agents/`
+directory, and the `diagram`, `i-have-adhd` and `python-coder-v2` skills. The directory is mode 700
+because transcripts are plaintext. Nothing under it is `exact_`, and `settings.json`,
+`.claude.json`, credentials, history, `projects/`, `plugins/` and `skills/synced` are Claude Code's
+own state and are never committed.
 
 **Flow: CLI tools on macOS**
 
@@ -231,10 +242,11 @@ flowchart LR
     A11["after_11 rustup"]
     A12["after_12 nvm, Node LTS"] --> A16["after_16 mermaid-cli<br/>headless Chrome"]
     A13["after_13 uv"]
+    A21["after_21 Claude Code"]
 ```
 
 Runtimes install from their own upstream installers, independent of Homebrew; only Oh My Zsh and
-mermaid-cli depend on an earlier script.
+mermaid-cli depend on an earlier script. Claude Code (`after_21`) needs none of them.
 
 **Invariants**
 
@@ -350,6 +362,7 @@ variable pointing it at the corporate CA.
 | cargo | `[http] proxy` in `~/.cargo/config.toml` |
 | curl (including `install_release`), Homebrew (macOS), pip, uv, Go, rustup | `http_proxy` / `https_proxy` (both cases) from `.zshenv`; install scripts export the uppercase pair |
 | Puppeteer's browser download | Same variables, honored only because `after_16` adds `proxy-agent` |
+| Claude Code installer (`after_21`) | The uppercase pair the script exports; its `claude install` step also needs `NODE_EXTRA_CA_CERTS` (the script exports it) |
 
 **Invariants**
 
@@ -370,7 +383,7 @@ variable pointing it at the corporate CA.
 
 | Symptom | Cause | Where handled |
 |---|---|---|
-| Certificate error from Node or npm | `NODE_EXTRA_CA_CERTS` missing in that process | `.zshenv`, and `after_16` exports it for its own run |
+| Certificate error from Node or npm | `NODE_EXTRA_CA_CERTS` missing in that process | `.zshenv`, and `after_16` and `after_21` export it for their own run |
 | Certificate error from uv | `UV_SYSTEM_CERTS` missing | `.zshenv` |
 | WSL cannot reach a proxy on `127.0.0.1` | WSL2 NAT networking | [GUIDE: corporate WSL preconditions](GUIDE.md#corporate-wsl-preconditions) (mirrored networking) |
 
@@ -475,6 +488,7 @@ proxy or the corporate CA fails the job. Like the real corporate proxy, mitmprox
 | apt DIRECT hosts | Chosen once, when `before_01` runs; a mirror added later needs `before_01` re-run ([CONTRIBUTING R7](CONTRIBUTING.md#r7-re-run-a-run_once_-script-on-one-machine)). |
 | VS Code Remote-WSL server | Reads no shell startup files, so it gets no proxy. |
 | macOS `pip` behind the corporate proxy | Untested. |
+| Claude Code installer hosts | `claude.ai` and `downloads.claude.ai` are not in the measured reachable list above. CI's corporate proxy blocks only `raw.githubusercontent.com` and `ghcr.io`, so CI passes; whether a real corporate proxy allows them is unverified. |
 | First Neovim launch (language servers, parsers, .NET tools) | Not exercised by CI. |
 | macOS bootstrap, end to end | Never run in CI; only macOS template rendering is checked, by the manual `macos` job. |
 | Intel Macs, non-Debian Linux | Not supported: `/opt/homebrew` and apt are assumed. |

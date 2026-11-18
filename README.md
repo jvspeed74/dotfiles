@@ -32,6 +32,7 @@ first; the one-liner needs the proxy and CA before any of this repo runs.
 | Editor | Neovim with LazyVim and 12 Extras, JetBrainsMono Nerd Font on macOS |
 | Data | `psql`, Snowflake CLI (`snow`), dialect-aware SQL lint and format |
 | Diagrams | mermaid-cli |
+| AI tooling | Claude Code (native installer; it updates itself), a global `~/.claude/CLAUDE.md`, and three personal skills |
 | Corporate | Proxy and CA trust for apt (internal mirror direct), git, npm, cargo, Node, uv, Homebrew (macOS); telemetry off; nothing needs `raw.githubusercontent.com` or `ghcr.io` on Linux |
 
 Per-script details: [ARCHITECTURE layer 4](ARCHITECTURE.md#4-provisioning-scripts).

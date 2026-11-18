@@ -69,7 +69,7 @@ check "path: nested non-interactive zsh keeps the parent's first entry (venv)" \
     test "$(env -i HOME="$HOME" USER="$USER" PATH="$parent" zsh -c 'print -r -- $path[1]')" = "$venv"
 check "path: nested interactive zsh keeps the parent's first entry (venv)" \
     test "$(clean_zsh_i 'print -r -- $path[1]' "$parent" | tail -n1)" = "$venv"
-for tool in gh rg fd lazygit uv node mmdc; do
+for tool in gh rg fd lazygit uv node mmdc claude; do
     check "tool resolves in interactive zsh: $tool" zsh -i -c "command -v $tool >/dev/null" </dev/null
 done
 
@@ -103,6 +103,18 @@ for tool in gh rg fd lazygit nvim tree-sitter fzf; do
     check "release: $tool runs" "$local_bin/$tool" --version
 done
 check "release: no Homebrew on Linux" test ! -e /home/linuxbrew
+# Claude Code: the native installer's launcher (after_21), not a pinned release in ~/.local/opt.
+check "claude: resolves to $local_bin in interactive and non-interactive zsh" \
+    bash -c '[[ $(zsh -i -c "command -v claude" </dev/null 2>/dev/null | tail -n1) == "$1/claude" && $(zsh -c "command -v claude") == "$1/claude" ]]' _ "$local_bin"
+check "claude: launcher links into ~/.local/share/claude/versions" \
+    bash -c '[[ $(readlink -f "$1") == "$HOME"/.local/share/claude/versions/* ]]' _ "$local_bin/claude"
+check "claude: runs" "$local_bin/claude" --version
+# The managed ~/.claude files (private_dot_claude): CLAUDE.md, the agents dir and the authored skills.
+check "claude: ~/.claude is mode 700 (transcripts are plaintext)" test "$(stat -c %a "$HOME/.claude")" = 700
+# agents/ is only a directory: chezmoi does not write the empty .keep file that reserves it.
+check "claude: CLAUDE.md, agents dir and authored skills are applied" \
+    bash -c 'for f in CLAUDE.md skills/diagram/SKILL.md skills/i-have-adhd/SKILL.md skills/python-coder-v2/SKILL.md skills/python-coder-v2/CORE_VISION.md; do [[ -f "$HOME/.claude/$f" ]] || { echo "missing ~/.claude/$f" >&2; exit 1; }; done; [[ -d "$HOME/.claude/agents" ]] || { echo "missing ~/.claude/agents/" >&2; exit 1; }'
+check "claude: applied CLAUDE.md has no template markers" bash -c '! grep -qF "{{" "$HOME/.claude/CLAUDE.md"'
 check "#8 chrome-headless-shell downloaded by after_16" \
     bash -c 'find "$HOME/.cache/puppeteer" -type f -name chrome-headless-shell -perm -u+x 2>/dev/null | grep -q .'
 check "#4 no ~/.zshrc.pre-oh-my-zsh" test ! -e "$HOME/.zshrc.pre-oh-my-zsh"
@@ -115,6 +127,7 @@ check "#4 ~/.zshrc matches the managed template" cmp -s <(chezmoi cat "$HOME/.zs
 check "chezmoi status is clean after bootstrap" test -z "$(chezmoi status)"
 check "docs: README, GUIDE, ARCHITECTURE, CONTRIBUTING are not applied to ~" \
     test ! -e "$HOME/README.md" -a ! -e "$HOME/GUIDE.md" -a ! -e "$HOME/ARCHITECTURE.md" -a ! -e "$HOME/CONTRIBUTING.md"
+check "repo: .gitattributes is not applied to ~" test ! -e "$HOME/.gitattributes"
 if [[ -n "$(chezmoi status)" ]]; then chezmoi status; chezmoi diff | head -60; fi
 
 check "#3 github.com helper is !$local_bin/gh" \
