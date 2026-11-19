@@ -16,9 +16,16 @@ export NVM_DIR="$HOME/.nvm"
 # shellcheck disable=SC1091
 \. "$NVM_DIR/nvm.sh"
 
+# mmdc launches chrome-headless-shell (mermaid-cli sets headless: "shell"). Puppeteer's postinstall
+# also downloads full Chrome by default (~375 MB, unused); skip only that one.
+export PUPPETEER_CHROME_SKIP_DOWNLOAD=true
+
 npm install -g @mermaid-js/mermaid-cli
+# Download the headless shell with the Puppeteer version mermaid-cli bundles: each Puppeteer release
+# pins its own browser build, so an unpinned (latest) npx could fetch one mmdc never looks for.
+pptr_version=$(cd "$(npm root -g)/@mermaid-js/mermaid-cli" && node -p "require('puppeteer/package.json').version")
 # @puppeteer/browsers honors HTTP(S)_PROXY only when proxy-agent is installed (pptr.dev/browsers-api).
-npx -p puppeteer -p proxy-agent puppeteer browsers install chrome-headless-shell
+npx -p "puppeteer@$pptr_version" -p proxy-agent puppeteer browsers install chrome-headless-shell
 
 command -v mmdc >/dev/null || { echo "mermaid-cli install failed" >&2; exit 1; }
 mmdc --version >/dev/null || { echo "mmdc did not report a version" >&2; exit 1; }

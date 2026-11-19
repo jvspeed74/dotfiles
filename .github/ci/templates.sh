@@ -25,6 +25,11 @@ q_proxy="Corporate proxy URL (e.g. http://proxy.corp.example:8080)"
 q_ca="Path to exported corporate root CA cert (e.g. /mnt/c/Users/you/ca.crt)"
 
 # Render .chezmoi.toml.tmpl into a config per profile, then every other template with it.
+# Every chezmoi call gets its own config and state: on a machine already set up with chezmoi,
+# promptBoolOnce/promptStringOnce would otherwise return the saved answers from
+# ~/.config/chezmoi/chezmoi.toml and ignore the --promptBool/--promptString values below.
+: > "$work/empty.toml"
+isolate=(--persistent-state "$work/chezmoistate.boltdb")
 for profile in corp personal; do
     if [[ $profile == corp ]]; then
         prompts=(--promptBool "$q_corp=true"
@@ -33,13 +38,14 @@ for profile in corp personal; do
     else
         prompts=(--promptBool "$q_corp=false")
     fi
-    chezmoi execute-template --init "${prompts[@]}" < "$repo/.chezmoi.toml.tmpl" > "$work/$profile.toml"
+    chezmoi --config "$work/empty.toml" "${isolate[@]}" execute-template --init "${prompts[@]}" \
+        < "$repo/.chezmoi.toml.tmpl" > "$work/$profile.toml"
 
     while IFS= read -r tmpl; do
         rel="${tmpl#"$repo"/}"
         out="$work/$profile/${rel%.tmpl}"
         mkdir -p "$(dirname "$out")"
-        chezmoi --config "$work/$profile.toml" --source "$repo" execute-template < "$tmpl" > "$out"
+        chezmoi --config "$work/$profile.toml" "${isolate[@]}" --source "$repo" execute-template < "$tmpl" > "$out"
     done < <(find "$repo" -name '*.tmpl' ! -name '.chezmoi.toml.tmpl' -not -path '*/.git/*')
     cp "$repo"/run_*.sh "$work/$profile/" 2>/dev/null || true
 done
