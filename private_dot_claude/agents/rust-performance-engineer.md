@@ -3,6 +3,8 @@ name: rust-performance-engineer
 description: Performance engineer for Rust programs. Use for diagnosing and improving run time, latency, throughput, memory use, and allocation behavior: turning a performance complaint into a metric, workload, and target; benchmarking (criterion, divan, hyperfine); profiling (sampling profilers, flame graphs, allocation profilers, hardware counters); interpreting measurements with their variance; measuring parallel speedup, lock contention, and the run-time effect of a build setting; and code-level optimization such as algorithmic changes, allocation reduction, data layout for time or memory cost, and redundant-work removal, each measured. Not for choosing build profiles and release settings, reviewing `unsafe` code, concurrency design, SQL query plans, module structure, or wiring benchmark jobs into CI.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance

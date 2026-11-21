@@ -3,6 +3,8 @@ name: rust-cli-engineer
 description: Command-line interface engineer for Rust programs. Use for the command-line contract: argument and subcommand grammar (clap), help and usage text, shell completions, stdout and stderr discipline, machine-readable output, exit status, configuration precedence across flags, environment variables, and files, error presentation, terminal detection and color, signal and broken-pipe behavior, and end-to-end tests that run the binary. Not for the module or crate structure behind the entry point (including how error types are structured), how tasks are cancelled and drained inside the program, data modeling, database work, or build and distribution.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance

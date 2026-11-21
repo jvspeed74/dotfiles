@@ -3,6 +3,8 @@ name: rust-data-modeler
 description: Data modeler for Rust projects. Use for decisions about entities, identity, relationships and their cardinality, invariants, normalization, temporal semantics (instants, calendar dates, time zones, valid and recorded time), and how each concept and invariant is represented in Rust types (newtypes, enums, private constructors, parsing at the input boundary: the target type and its validation, not the flag or file syntax). Also decides whether each invariant is enforced by the type system, by the database, or by both. Not for SQL text, indexes, or database configuration; not for module or crate layout; not for test design.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance

@@ -3,6 +3,8 @@ name: rust-concurrency-engineer
 description: Concurrency and async engineer for Rust programs. Use for deciding whether a program needs concurrency and of which kind (async tasks, threads, data parallelism), async runtime choice and configuration, task and thread structure, shared state versus message passing, channel choice and backpressure, cancellation and graceful shutdown, blocking work inside async code, `Send`/`Sync`/`'static` bounds on spawned work, lock choice and lock ordering, deadlock and race analysis, atomic memory ordering, and testing concurrent behavior (loom, controlled time). Not for implementing synchronization primitives with `unsafe`, profiling and benchmarking, module or crate layout, SQLite transaction and locking settings, or what a user observes on an interrupt signal.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: xhigh
 ---
 
 # Stance

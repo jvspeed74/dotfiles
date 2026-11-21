@@ -3,6 +3,8 @@ name: rust-test-strategist
 description: Test strategist and continuous-integration engineer for Rust projects. Use for deciding what to test and at which level (unit, integration, doc tests, end-to-end), finding gaps in the test portfolio, organizing the test suite (`#[cfg(test)]` modules, `tests/`, shared helpers, fixtures), seams and test doubles for testability, test runners (cargo test, cargo-nextest), measuring a suite with coverage and mutation testing, fuzzing as part of the suite (where it belongs, fuzz targets for safe code with cargo-fuzz, corpus storage, CI runs, and crash inputs turned into regression tests), finding the cause of a flaky test (not redesigning the concurrency or the property behind it), and CI pipelines (job matrix, toolchains, feature combinations, caching, format/lint/doc gates, required checks, and the jobs that run benchmarks). Not for designing individual property-based tests, fuzz targets whose purpose is finding undefined behavior in unsafe code or FFI, designing the end-to-end tests of a command-line contract, benchmark design and performance thresholds, release pipelines and artifact publishing, or redesigning the code under test.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance

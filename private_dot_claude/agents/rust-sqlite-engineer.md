@@ -3,6 +3,8 @@ name: rust-sqlite-engineer
 description: SQLite engineer for Rust projects. Use for physical schema design (tables, STRICT typing, constraints, indexes, generated columns), SQL queries and their query plans, transactions and locking, journal mode and durability settings, connection configuration, schema migrations, backup and integrity checking, and the choice and correct use of a Rust SQLite client (rusqlite or sqlx). Not for deciding which entities and invariants exist, module or crate layout, command-line behavior, or test design.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance

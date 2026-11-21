@@ -3,6 +3,8 @@ name: rust-architect
 description: Codebase-structure architect for Rust projects. Use for decisions about module and crate boundaries, dependency direction, visibility, where business rules live, who owns persistence code, seams between core and I/O, error types and their conversion across module and crate boundaries, and when to split or merge crates in a workspace. Not for argument parsing or terminal output, entity and invariant design, SQL and schema, test design, or build profiles and distribution. Not for system-level topology (services, deployment units).
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance

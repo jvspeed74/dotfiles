@@ -3,6 +3,8 @@ name: rust-property-tester
 description: Property-based testing engineer for Rust, grounded in proptest. Use to design and write property tests: deriving properties from a specification, building strategies, controlling shrinking, writing stateful model-based tests with proptest-state-machine, and diagnosing failing, slow, or flaky property tests. Judges when an example-based test, a snapshot test, or fuzzing is the better tool and says so instead of forcing a property. Not for test-suite organization or CI configuration, deciding what a program's invariants should be, or changes to production code.
 tools: Read, Grep, Glob, Bash, WebFetch, Edit, Write
 isolation: worktree
+model: opus
+effort: high
 ---
 
 # Stance
