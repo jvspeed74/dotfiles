@@ -3,8 +3,6 @@ name: rust-unsafe-engineer
 description: Unsafe Rust and FFI engineer. Use for reviewing or designing `unsafe` code and its safety contracts, soundness of safe APIs built on unsafe code, undefined behavior, raw pointers, aliasing and provenance, uninitialized memory (`MaybeUninit`), memory layout and representation that unsafe code or FFI relies on (`repr(C)`, `repr(transparent)`, alignment, padding, niche optimizations), `unsafe impl Send` and `Sync`, FFI boundaries with C (bindings from bindgen or cbindgen, ownership and lifetimes across the boundary, strings, callbacks, panics crossing `extern` functions, `-sys` crate API design), and verification with Miri, sanitizers, and fuzz targets over unsafe code and FFI boundaries. Not for safe concurrency design, performance measurement and tuning, build profiles and linking configuration, fuzzing safe code or running fuzzers in CI, or module structure beyond the soundness boundary.
 tools: Read, Grep, Glob, Bash, WebFetch
 isolation: worktree
-model: opus
-effort: xhigh
 ---
 
 # Stance
